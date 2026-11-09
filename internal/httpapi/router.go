@@ -18,7 +18,7 @@ import (
 )
 
 // NewHandler returns the HTTP API router. Dependencies belong in constructors.
-func NewHandler(store *auth.Store, secureCookies, trustProxy bool) http.Handler {
+func NewHandler(store *auth.Store, secureCookies, trustProxy bool, musicKey ...[]byte) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"status": "ok"})
@@ -27,6 +27,9 @@ func NewHandler(store *auth.Store, secureCookies, trustProxy bool) http.Handler 
 		writeJSON(w, map[string]any{"data": map[string]string{"message": "pong"}})
 	})
 	api := &authAPI{store: store, secureCookies: secureCookies, trustProxy: trustProxy, limiter: newRateLimiter()}
+	if len(musicKey) > 0 {
+		api.musicKey = musicKey[0]
+	}
 	mux.HandleFunc("GET /api/v1/auth/csrf", api.csrf)
 	mux.HandleFunc("GET /api/v1/auth/setup", api.setupStatus)
 	mux.HandleFunc("POST /api/v1/auth/setup", api.csrfProtected(api.limited(api.signup)))
@@ -37,6 +40,10 @@ func NewHandler(store *auth.Store, secureCookies, trustProxy bool) http.Handler 
 	mux.HandleFunc("GET /api/v1/auth/me", api.me)
 	mux.HandleFunc("POST /api/v1/auth/logout", api.csrfProtected(api.logout))
 	mux.HandleFunc("POST /api/v1/auth/password", api.csrfProtected(api.changePassword))
+	mux.HandleFunc("GET /api/v1/music/access", api.musicAccess)
+	mux.HandleFunc("GET /api/v1/music/credential", api.musicCredential)
+	mux.HandleFunc("POST /api/v1/music/credential", api.csrfProtected(api.saveMusicCredential))
+	mux.HandleFunc("DELETE /api/v1/music/credential", api.csrfProtected(api.deleteMusicCredential))
 	return securityHeaders(mux)
 }
 
@@ -53,6 +60,7 @@ type authAPI struct {
 	secureCookies bool
 	trustProxy    bool
 	limiter       *rateLimiter
+	musicKey      []byte
 }
 type credentials struct {
 	Username string `json:"username"`
@@ -161,11 +169,16 @@ func (a *authAPI) currentUser(r *http.Request) (auth.User, error) {
 	return a.store.UserForToken(r.Context(), token)
 }
 func (a *authAPI) setSession(w http.ResponseWriter, token string) {
+	a.clearMusicSession(w)
 	http.SetCookie(w, &http.Cookie{Name: "assan_session", Value: token, Path: "/", Secure: a.secureCookies, HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: int((7 * 24 * time.Hour).Seconds())})
 }
 func (a *authAPI) clearSession(w http.ResponseWriter) {
+	a.clearMusicSession(w)
 	http.SetCookie(w, &http.Cookie{Name: "assan_session", Value: "", Path: "/", Secure: a.secureCookies, HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: -1})
 	http.SetCookie(w, &http.Cookie{Name: "assan_csrf", Value: "", Path: "/", Secure: a.secureCookies, SameSite: http.SameSiteStrictMode, MaxAge: -1})
+}
+func (a *authAPI) clearMusicSession(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{Name: "music-token", Path: "/", Secure: a.secureCookies, SameSite: http.SameSiteStrictMode, MaxAge: -1})
 }
 func sessionToken(r *http.Request) string {
 	c, err := r.Cookie("assan_session")

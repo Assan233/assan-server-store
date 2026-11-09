@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"log/slog"
 	"os"
 	"testing"
@@ -36,5 +37,26 @@ func TestLoad(t *testing.T) {
 				t.Fatal("expected validation error")
 			}
 		})
+	}
+}
+
+func TestLocalMusicKeyAndEnvironmentOverride(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("MUSIC_CREDENTIAL_KEY", "")
+	if err := os.Unsetenv("MUSIC_CREDENTIAL_KEY"); err != nil {
+		t.Fatal(err)
+	}
+	local := base64.StdEncoding.EncodeToString([]byte("0123456789abcdef0123456789abcdef"))
+	if err := os.WriteFile(".env.local", []byte("# Local secret\nMUSIC_CREDENTIAL_KEY="+local+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load()
+	if err != nil || string(cfg.MusicKey) != "0123456789abcdef0123456789abcdef" {
+		t.Fatalf("local key: %v", err)
+	}
+	t.Setenv("MUSIC_CREDENTIAL_KEY", base64.StdEncoding.EncodeToString([]byte("fedcba9876543210fedcba9876543210")))
+	cfg, err = Load()
+	if err != nil || string(cfg.MusicKey) != "fedcba9876543210fedcba9876543210" {
+		t.Fatalf("environment override: %v", err)
 	}
 }

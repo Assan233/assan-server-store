@@ -44,7 +44,7 @@ func run() error {
 	defer stop()
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           httpapi.NewHandler(db, cfg.SecureCookies, cfg.TrustProxy),
+		Handler:           httpapi.NewHandler(db, cfg.SecureCookies, cfg.TrustProxy, cfg.MusicKey),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

@@ -80,6 +80,13 @@ func Open(ctx context.Context, path string) (*Store, error) {
 			return nil, fmt.Errorf("migrate roles: %w", err)
 		}
 	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS music_credentials (
+		user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+		username TEXT NOT NULL, password_sealed BLOB NOT NULL
+	)`); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate music credentials: %w", err)
+	}
 	return &Store{db: db}, nil
 }
 

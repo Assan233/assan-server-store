@@ -2,10 +2,12 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -17,6 +19,7 @@ type Config struct {
 	DatabasePath    string
 	SecureCookies   bool
 	TrustProxy      bool
+	MusicKey        []byte
 }
 
 // Load reads environment variables, applying defaults only to absent variables.
@@ -60,6 +63,25 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("TRUST_PROXY must be a boolean")
 		}
 		cfg.TrustProxy = trusted
+	}
+	value, set := os.LookupEnv("MUSIC_CREDENTIAL_KEY")
+	if !set {
+		contents, err := os.ReadFile(".env.local")
+		if err != nil && !os.IsNotExist(err) {
+			return Config{}, fmt.Errorf("read .env.local: %w", err)
+		}
+		for _, line := range strings.Split(string(contents), "\n") {
+			if candidate, ok := strings.CutPrefix(strings.TrimSpace(line), "MUSIC_CREDENTIAL_KEY="); ok {
+				value = strings.TrimSpace(candidate)
+			}
+		}
+	}
+	if value != "" {
+		key, err := base64.StdEncoding.DecodeString(value)
+		if err != nil || len(key) != 32 {
+			return Config{}, fmt.Errorf("MUSIC_CREDENTIAL_KEY must be base64 encoding of 32 random bytes")
+		}
+		cfg.MusicKey = key
 	}
 	return cfg, nil
 }

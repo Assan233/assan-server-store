@@ -41,7 +41,7 @@ AGENTS.md              仓库级 AI 协作规则
 
 ## 配置
 
-进程直接读取环境变量，**不会自动加载 `.env`**。非法配置会导致启动失败。
+进程直接读取环境变量，**不会自动加载 `.env`**。本地开发时若未设置 `MUSIC_CREDENTIAL_KEY` 环境变量，会从工作目录的 `.env.local` 读取该密钥（仅此变量）；文件被 Git 和 Docker 构建忽略。环境变量优先。非法配置会导致启动失败。
 
 | 变量 | 默认值 | 用途 |
 | --- | --- | --- |
@@ -51,6 +51,9 @@ AGENTS.md              仓库级 AI 协作规则
 | `DATABASE_PATH` | `data/assan.db` | SQLite 数据库文件路径 |
 | `SECURE_COOKIES` | `false` | 通过 HTTPS 部署时设为 `true`，只经 TLS 发送认证 Cookie |
 | `TRUST_PROXY` | `false` | 仅当 API 无法绕过可信反向代理访问时设为 `true`，从 `X-Real-IP` 获取限流来源 |
+| `MUSIC_CREDENTIAL_KEY` | 空（禁用音乐凭据接口） | Base64 编码的 32 字节随机密钥，使用 `openssl rand -base64 32` 生成，更新部署时保持不变 |
+
+本地只需在后端仓库的 `.env.local` 中写入一次 `MUSIC_CREDENTIAL_KEY=生成的密钥`，之后在后端仓库根目录运行 `make run`、`go run ./cmd/server` 或配置 GoLand 工作目录为仓库根目录即可。请妥善备份该文件；不要提交密钥，也不要在每次启动时重新生成。
 
 ```sh
 HTTP_PORT=9090 LOG_LEVEL=DEBUG go run ./cmd/server
@@ -80,6 +83,7 @@ Compose 自动使用 `.env` 插值：`HOST_PORT` 控制宿主机端口，`BIND_A
 - Docker 定期检查 `/healthz`。`restart: unless-stopped` 对进程退出生效，单纯 unhealthy 状态不会自动重启容器。
 - Auth API 提供首次管理员初始化、登录、当前用户、登出及修改密码；不再公开注册。管理员可添加、启用、禁用、删除子账号和重置子账号密码，管理接口强制校验角色。账号保存在本机 SQLite 数据卷，不依赖外部认证服务。认证依赖 HttpOnly 会话 Cookie 和 CSRF token，部署者应在开放访问前完成首次初始化。旧安装迁移/清空步骤见 `docs/api.md`。
 - 忘记密码时，可在交互终端运行 `docker compose exec -it api /usr/local/bin/reset-password USERNAME`；输入不会回显，重置会撤销该账户的全部会话。
+- 飞牛音乐集成按用户加密存储音乐登录凭据。前端 Compose 通过 `.env` 提供 `MUSIC_CREDENTIAL_KEY`；备份时同时安全保管该密钥，丢失或轮换后需要用户重新保存音乐账号。接口、安全边界与 Cookie 行为见 `docs/api.md`。
 
 ### 多架构镜像
 
