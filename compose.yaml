@@ -10,6 +10,11 @@ services:
       HTTP_PORT: "8080"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
       SHUTDOWN_TIMEOUT: "10s"
+      DATABASE_PATH: /data/assan.db
+      SECURE_COOKIES: "${SECURE_COOKIES:-true}"
+      TRUST_PROXY: "${TRUST_PROXY:-false}"
+    volumes:
+      - assan-data:/data
     stop_grace_period: 15s
     read_only: true
     tmpfs:
@@ -23,3 +28,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  assan-data:

@@ -9,9 +9,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
+	"github.com/Assan233/assan-server-store/internal/auth"
 	"github.com/Assan233/assan-server-store/internal/config"
 	"github.com/Assan233/assan-server-store/internal/httpapi"
 )
@@ -30,11 +32,19 @@ func run() error {
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
 	slog.SetDefault(logger)
+	if err := os.MkdirAll(filepath.Dir(cfg.DatabasePath), 0o700); err != nil {
+		return fmt.Errorf("create database directory: %w", err)
+	}
+	db, err := auth.Open(context.Background(), cfg.DatabasePath)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           httpapi.NewHandler(),
+		Handler:           httpapi.NewHandler(db, cfg.SecureCookies, cfg.TrustProxy),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

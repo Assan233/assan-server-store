@@ -21,13 +21,14 @@ make check     # go vet、race 测试、格式检查
 make build     # 生成 bin/server
 ```
 
-无 Make 时可分别运行 `gofmt -w cmd internal`、`go vet ./...`、`go test -race ./...` 和 `go build -o bin/server ./cmd/server`。Race 检测需要支持的平台及 C 编译器。当前仅使用标准库，无第三方依赖，因此没有 `go.sum`。
+无 Make 时可分别运行 `gofmt -w cmd internal`、`go vet ./...`、`go test -race ./...` 和 `go build -o bin/server ./cmd/server`。Race 检测需要支持的平台及 C 编译器。密码哈希使用 `x/crypto/argon2`，SQLite 使用纯 Go 的 `modernc.org/sqlite`。
 
 ## 项目结构
 
 ```text
 cmd/server/            进程入口、依赖组装、信号处理与优雅退出
 internal/config/       环境配置及启动校验
+internal/auth/         SQLite 用户、密码哈希和会话
 internal/httpapi/      HTTP 路由及接口测试
 docs/api.md            前后端接口约定
 .github/workflows/     Go 检查与双架构镜像构建 CI
@@ -36,7 +37,7 @@ compose.yaml           NAS 部署入口
 AGENTS.md              仓库级 AI 协作规则
 ```
 
-后续功能按 `internal/<feature>` 组织，按实际需求增加存储实现和迁移；当前服务无持久化数据，不需要数据卷。业务包与 HTTP 层分离，避免提前建立空的 controller/service/repository 层。Go 的 `internal` 边界防止实现被外部模块导入。
+认证用户及会话存储在 SQLite 数据库中，Compose 命名卷 `assan-data` 持久保存 `/data/assan.db`。备份 NAS 上的 Docker volume 以保护账户数据。业务包与 HTTP 层分离；Go 的 `internal` 边界防止实现被外部模块导入。
 
 ## 配置
 
@@ -47,6 +48,9 @@ AGENTS.md              仓库级 AI 协作规则
 | `HTTP_PORT` | `8080` | 监听所有网卡的端口，范围 1–65535 |
 | `LOG_LEVEL` | `INFO` | slog 级别，通常使用 DEBUG / INFO / WARN / ERROR |
 | `SHUTDOWN_TIMEOUT` | `10s` | 等待正在处理的请求结束的正数时长 |
+| `DATABASE_PATH` | `data/assan.db` | SQLite 数据库文件路径 |
+| `SECURE_COOKIES` | `false` | 通过 HTTPS 部署时设为 `true`，只经 TLS 发送认证 Cookie |
+| `TRUST_PROXY` | `false` | 仅当 API 无法绕过可信反向代理访问时设为 `true`，从 `X-Real-IP` 获取限流来源 |
 
 ```sh
 HTTP_PORT=9090 LOG_LEVEL=DEBUG go run ./cmd/server
@@ -66,14 +70,16 @@ curl http://127.0.0.1:8080/healthz
 docker compose down
 ```
 
-Compose 自动使用 `.env` 插值：`HOST_PORT` 控制宿主机端口，`BIND_ADDRESS` 默认 `127.0.0.1`，`LOG_LEVEL` 传给进程。容器端口固定为 8080，退出等待为 10 秒，Compose 留出 15 秒停止时间。
+Compose 自动使用 `.env` 插值：`HOST_PORT` 控制宿主机端口，`BIND_ADDRESS` 默认 `127.0.0.1`，`LOG_LEVEL` 传给进程，`SECURE_COOKIES=true` 适用于 HTTPS 反向代理。容器端口固定为 8080，退出等待为 10 秒，Compose 留出 15 秒停止时间。SQLite 数据位于命名卷 `assan-data`，`docker compose down` 不会删除该卷。
 
 - NAS 宿主机上的反向代理可转发到 `127.0.0.1:8080`。若代理运行在另一个容器中，应接入共享 Docker 网络并访问 `api:8080`，而不是代理容器自己的 localhost。
-- 如需局域网直接访问，在 `.env` 将 `BIND_ADDRESS` 改为 NAS 的局域网 IP 或 `0.0.0.0`；再访问 `http://<NAS-IP>:8080`。
+- 建议通过提供 HTTPS 的 NAS 反向代理公开服务，并保持 `SECURE_COOKIES=true`。仅在可信内网测试时才考虑直接使用 HTTP（此时需设 `SECURE_COOKIES=false`）。
+- 单独部署本 API 时保持 `TRUST_PROXY=false`；通过前端 Compose 内网访问时启用 `TRUST_PROXY=true`，且 API 不得向不可信网络公开。NAS 入口反向代理必须覆盖 `X-Real-IP` 为真实客户端 IP；前端 Nginx 仅转发该受信值，避免所有外部用户共用反代 IP 的限流额度。
 - 前端开发服务器将 `/api` 代理到 `http://localhost:8080`，生产代理保留 `/api/v1/...` 完整路径。当前没有启用跨域策略。
 - 镜像以 UID/GID `10001:10001` 运行；Compose 设置只读根文件系统、临时 `/tmp`、移除 capabilities 和日志轮转。
 - Docker 定期检查 `/healthz`。`restart: unless-stopped` 对进程退出生效，单纯 unhealthy 状态不会自动重启容器。
-- 当前只暴露无敏感数据的健康和 ping 接口；未来私有业务接口对外部署前需要实现相应身份认证和授权，TLS 可由 NAS 反向代理终止。
+- Auth API 提供公开注册、登录、当前用户、登出及修改密码；认证依赖 HttpOnly 会话 Cookie 和 CSRF token。公开注册适合个人/受控 NAS 部署，反向代理应限制公开访问并启用 HTTPS。
+- 忘记密码时，可在交互终端运行 `docker compose exec -it api /usr/local/bin/reset-password USERNAME`；输入不会回显，重置会撤销该账户的全部会话。
 
 ### 多架构镜像
 
