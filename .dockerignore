@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+.env
+.env.*
+bin
+coverage.*
+*.test
+*.out
+README.md
+AGENTS.md
+**/AGENTS.md
+docs
