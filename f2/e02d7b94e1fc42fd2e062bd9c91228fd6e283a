@@ -1,0 +1,55 @@
+Makefile
+  s_2d09c327a962e5::t_ba37280c9858d2 1-19
+go.mod
+  s_2d09c327a962e5::t_ba37280c9858d2 1-3
+.github/workflows/ci.yml
+  s_2d09c327a962e5::t_ba37280c9858d2 1-30
+internal/config/config_test.go
+  s_2d09c327a962e5::t_ba37280c9858d2 1-12,16-34,38-40
+  s_2d09c327a962e5::t_d18bb876fd2fe0 13-15,35-37
+README.md
+  s_2d09c327a962e5::t_302b4a4e2bd3e8 1-98
+Dockerfile
+  s_2d09c327a962e5::t_ba37280c9858d2 1-22
+internal/httpapi/router_test.go
+  s_2d09c327a962e5::t_d18bb876fd2fe0 11-14,22-24,26-28,30-35,38-40
+  s_2d09c327a962e5::t_ba37280c9858d2 1-10,15-21,25,29,36-37,41-45
+docs/api.md
+  s_2d09c327a962e5::t_302b4a4e2bd3e8 1-22
+.dockerignore
+  s_2d09c327a962e5::t_ba37280c9858d2 1-14
+.env.example
+  s_2d09c327a962e5::t_ba37280c9858d2 1-4
+internal/httpapi/router.go
+  s_2d09c327a962e5::t_ba37280c9858d2 1-27
+compose.yaml
+  s_2d09c327a962e5::t_ba37280c9858d2 1-25
+cmd/server/main.go
+  s_2d09c327a962e5::t_d18bb876fd2fe0 36-37,39-43
+  s_2d09c327a962e5::t_ba37280c9858d2 1-35,38,44-70
+AGENTS.md
+  s_2d09c327a962e5::t_302b4a4e2bd3e8 1-26
+internal/config/config.go
+  s_2d09c327a962e5::t_d18bb876fd2fe0 14-15
+  s_2d09c327a962e5::t_ba37280c9858d2 1-13,16-42
+internal/httpapi/AGENTS.md
+  s_2d09c327a962e5::t_302b4a4e2bd3e8 1-9
+.gitignore
+  s_2d09c327a962e5::t_ba37280c9858d2 32-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f2e02d7b94e1fc42fd2e062bd9c91228fd6e283a",
+  "prompts": {},
+  "sessions": {
+    "s_2d09c327a962e5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e41f3ea4effe76beL0ex1KrjTN",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "caorongsen <caorongsen@zuoyebang.com>"
+    }
+  }
+}
