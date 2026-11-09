@@ -42,7 +42,7 @@ func testHandler(t *testing.T) http.Handler {
 	return NewHandler(store, false, false)
 }
 
-func TestSignupRequiresCSRFAndCreatesSession(t *testing.T) {
+func TestSetupRequiresCSRFAndCreatesSession(t *testing.T) {
 	handler := testHandler(t)
 	request := func(method, path, body string, cookies []*http.Cookie, token string) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
@@ -56,7 +56,7 @@ func TestSignupRequiresCSRFAndCreatesSession(t *testing.T) {
 		handler.ServeHTTP(w, req)
 		return w
 	}
-	if got := request("POST", "/api/v1/auth/signup", `{"username":"testuser","password":"long-enough-password"}`, nil, "").Code; got != http.StatusForbidden {
+	if got := request("POST", "/api/v1/auth/setup", `{"username":"testuser","password":"Long-enough-password1!"}`, nil, "").Code; got != http.StatusForbidden {
 		t.Fatalf("signup without CSRF = %d; want 403", got)
 	}
 	csrfResponse := request("GET", "/api/v1/auth/csrf", "", nil, "")
@@ -69,7 +69,7 @@ func TestSignupRequiresCSRFAndCreatesSession(t *testing.T) {
 	if err := json.Unmarshal(csrfResponse.Body.Bytes(), &csrfBody); err != nil {
 		t.Fatal(err)
 	}
-	created := request("POST", "/api/v1/auth/signup", `{"username":"testuser","password":"long-enough-password"}`, []*http.Cookie{csrfCookie}, csrfBody.Data.Token)
+	created := request("POST", "/api/v1/auth/setup", `{"username":"testuser","password":"Long-enough-password1!"}`, []*http.Cookie{csrfCookie}, csrfBody.Data.Token)
 	if created.Code != http.StatusOK {
 		t.Fatalf("signup = %d: %s", created.Code, created.Body.String())
 	}
@@ -85,6 +85,35 @@ func TestSignupRequiresCSRFAndCreatesSession(t *testing.T) {
 	me := request("GET", "/api/v1/auth/me", "", []*http.Cookie{session}, "")
 	if me.Code != http.StatusOK {
 		t.Fatalf("authenticated me = %d: %s", me.Code, me.Body.String())
+	}
+	if got := request("POST", "/api/v1/auth/setup", `{"username":"second","password":"Long-enough-password1!"}`, []*http.Cookie{csrfCookie}, csrfBody.Data.Token).Code; got != 409 {
+		t.Fatalf("repeat setup = %d", got)
+	}
+	if got := request("POST", "/api/v1/auth/signup", `{}`, nil, "").Code; got != 404 {
+		t.Fatalf("public signup = %d", got)
+	}
+	if got := request("GET", "/api/v1/admin/users", "", nil, "").Code; got != 401 {
+		t.Fatalf("anonymous users = %d", got)
+	}
+	adminCookies := []*http.Cookie{session, csrfCookie}
+	if got := request("POST", "/api/v1/admin/users", `{"username":"member","password":"Long-enough-password1!"}`, adminCookies, csrfBody.Data.Token).Code; got != 204 {
+		t.Fatalf("create member = %d", got)
+	}
+	memberLogin := request("POST", "/api/v1/auth/login", `{"username":"member","password":"Long-enough-password1!"}`, []*http.Cookie{csrfCookie}, csrfBody.Data.Token)
+	if memberLogin.Code != 200 {
+		t.Fatalf("member login = %d", memberLogin.Code)
+	}
+	memberCookies := append(memberLogin.Result().Cookies(), csrfCookie)
+	for _, path := range []string{"/api/v1/admin/users", "/api/v1/admin/users/1"} {
+		if got := request("POST", path, `{"action":"delete"}`, memberCookies, csrfBody.Data.Token).Code; got != 403 {
+			t.Fatalf("member mutation %s = %d", path, got)
+		}
+	}
+	if got := request("GET", "/api/v1/admin/users", "", memberCookies, "").Code; got != 403 {
+		t.Fatalf("member list = %d", got)
+	}
+	if got := request("POST", "/api/v1/admin/users/1", `{"action":"delete"}`, adminCookies, csrfBody.Data.Token).Code; got != 403 {
+		t.Fatalf("delete admin = %d", got)
 	}
 	if got := request("POST", "/api/v1/auth/logout", "{}", []*http.Cookie{session}, "").Code; got != http.StatusForbidden {
 		t.Fatalf("logout without CSRF = %d; want 403", got)

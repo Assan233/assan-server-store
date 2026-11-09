@@ -15,7 +15,7 @@ func TestRegistrationLoginAndPasswordRevocation(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	user, firstToken, err := store.Register(ctx, "tool_user", "a-strong-password-12")
+	user, firstToken, err := store.Register(ctx, "tool_user", "A-strong-password-12")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,17 +25,17 @@ func TestRegistrationLoginAndPasswordRevocation(t *testing.T) {
 	if _, _, err := store.Login(ctx, user.Username, "wrong-password"); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("Login(wrong password) error = %v, want ErrInvalid", err)
 	}
-	if _, _, err := store.Login(ctx, "unknown_user", "a-strong-password-12"); !errors.Is(err, ErrInvalid) {
+	if _, _, err := store.Login(ctx, "unknown_user", "A-strong-password-12"); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("Login(unknown user) error = %v, want ErrInvalid", err)
 	}
-	if _, _, err := store.Login(ctx, "TOOL_USER", "a-strong-password-12"); err != nil {
+	if _, _, err := store.Login(ctx, "TOOL_USER", "A-strong-password-12"); err != nil {
 		t.Fatalf("Login(case-insensitive username) error = %v", err)
 	}
-	_, secondToken, err := store.Login(ctx, user.Username, "a-strong-password-12")
+	_, secondToken, err := store.Login(ctx, user.Username, "A-strong-password-12")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.ChangePassword(ctx, user.ID, "a-strong-password-12", "an-even-stronger-password"); err != nil {
+	if err := store.ChangePassword(ctx, user.ID, "A-strong-password-12", "New-pass1!"); err != nil {
 		t.Fatal(err)
 	}
 	for _, token := range []string{firstToken, secondToken} {
@@ -43,10 +43,10 @@ func TestRegistrationLoginAndPasswordRevocation(t *testing.T) {
 			t.Fatalf("UserForToken(revoked token) error = %v, want ErrUnauth", err)
 		}
 	}
-	if _, _, err := store.Login(ctx, user.Username, "a-strong-password-12"); !errors.Is(err, ErrInvalid) {
+	if _, _, err := store.Login(ctx, user.Username, "A-strong-password-12"); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("Login(old password) error = %v, want ErrInvalid", err)
 	}
-	if _, _, err := store.Login(ctx, user.Username, "an-even-stronger-password"); err != nil {
+	if _, _, err := store.Login(ctx, user.Username, "New-pass1!"); err != nil {
 		t.Fatalf("Login(new password) error = %v", err)
 	}
 }
@@ -59,8 +59,8 @@ func TestRegisterRejectsInvalidInput(t *testing.T) {
 	t.Cleanup(func() { _ = store.Close() })
 
 	for _, tc := range []struct{ username, password string }{
-		{"ab", "a-strong-password-12"},
-		{"bad name", "a-strong-password-12"},
+		{"ab", "A-strong-password-12"},
+		{"bad name", "A-strong-password-12"},
 		{"valid_user", "short"},
 	} {
 		if _, _, err := store.Register(context.Background(), tc.username, tc.password); !errors.Is(err, ErrInvalid) {

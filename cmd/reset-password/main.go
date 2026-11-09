@@ -61,7 +61,7 @@ func run() error {
 			return errors.New("user does not exist")
 		}
 		if errors.Is(err, auth.ErrInvalid) {
-			return errors.New("password must be between 12 and 128 characters")
+			return errors.New(auth.PasswordRequirement)
 		}
 		return err
 	}

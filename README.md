@@ -78,7 +78,7 @@ Compose 自动使用 `.env` 插值：`HOST_PORT` 控制宿主机端口，`BIND_A
 - 前端开发服务器将 `/api` 代理到 `http://localhost:8080`，生产代理保留 `/api/v1/...` 完整路径。当前没有启用跨域策略。
 - 镜像以 UID/GID `10001:10001` 运行；Compose 设置只读根文件系统、临时 `/tmp`、移除 capabilities 和日志轮转。
 - Docker 定期检查 `/healthz`。`restart: unless-stopped` 对进程退出生效，单纯 unhealthy 状态不会自动重启容器。
-- Auth API 提供公开注册、登录、当前用户、登出及修改密码；认证依赖 HttpOnly 会话 Cookie 和 CSRF token。公开注册适合个人/受控 NAS 部署，反向代理应限制公开访问并启用 HTTPS。
+- Auth API 提供首次管理员初始化、登录、当前用户、登出及修改密码；不再公开注册。管理员可添加、启用、禁用、删除子账号和重置子账号密码，管理接口强制校验角色。账号保存在本机 SQLite 数据卷，不依赖外部认证服务。认证依赖 HttpOnly 会话 Cookie 和 CSRF token，部署者应在开放访问前完成首次初始化。旧安装迁移/清空步骤见 `docs/api.md`。
 - 忘记密码时，可在交互终端运行 `docker compose exec -it api /usr/local/bin/reset-password USERNAME`；输入不会回显，重置会撤销该账户的全部会话。
 
 ### 多架构镜像

@@ -20,16 +20,20 @@ import (
 const sessionLifetime = 7 * 24 * time.Hour
 
 var (
-	ErrInvalid = errors.New("invalid credentials or input")
-	ErrExists  = errors.New("username already exists")
-	ErrUnauth  = errors.New("authentication required")
-	usernameRE = regexp.MustCompile(`^[a-zA-Z0-9_]{3,32}$`)
+	ErrInvalid   = errors.New("invalid credentials or input")
+	ErrExists    = errors.New("username already exists")
+	ErrUnauth    = errors.New("authentication required")
+	ErrClosed    = errors.New("initialization already completed")
+	ErrForbidden = errors.New("operation not permitted")
+	usernameRE   = regexp.MustCompile(`^[a-zA-Z0-9_]{3,32}$`)
 )
 
 // User is the public account representation.
 type User struct {
 	ID       int64  `json:"id"`
 	Username string `json:"username"`
+	Role     string `json:"role"`
+	Disabled bool   `json:"disabled"`
 }
 
 // Store persists users and revocable sessions in SQLite.
@@ -59,16 +63,33 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrate auth database: %w", err)
 	}
+	var version int
+	if err := db.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if version == 0 {
+		_, err = db.ExecContext(ctx, `BEGIN IMMEDIATE;
+		ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'member';
+		ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0;
+		CREATE TABLE installation (id INTEGER PRIMARY KEY CHECK(id=1));
+		INSERT INTO installation SELECT 1 WHERE EXISTS(SELECT 1 FROM users);
+		PRAGMA user_version=1; COMMIT;`)
+		if err != nil {
+			db.Close()
+			return nil, fmt.Errorf("migrate roles: %w", err)
+		}
+	}
 	return &Store{db: db}, nil
 }
 
 // Close closes the underlying database.
 func (s *Store) Close() error { return s.db.Close() }
 
-// Register creates an account and its first browser session.
+// Register initializes the single administrator and its first browser session.
 func (s *Store) Register(ctx context.Context, username, password string) (User, string, error) {
 	username = strings.TrimSpace(username)
-	if !usernameRE.MatchString(username) || len(password) < 12 || len(password) > 128 {
+	if !usernameRE.MatchString(username) || !validPassword(password) {
 		return User{}, "", ErrInvalid
 	}
 	salt := make([]byte, 16)
@@ -81,7 +102,10 @@ func (s *Store) Register(ctx context.Context, username, password string) (User, 
 		return User{}, "", fmt.Errorf("begin registration: %w", err)
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(ctx, `INSERT INTO users(username,password_hash,password_salt,created_at) VALUES(?,?,?,?)`, username, hash, salt, time.Now().Unix())
+	if _, err := tx.ExecContext(ctx, `INSERT INTO installation(id) VALUES(1)`); err != nil {
+		return User{}, "", ErrClosed
+	}
+	result, err := tx.ExecContext(ctx, `INSERT INTO users(username,password_hash,password_salt,created_at,role) VALUES(?,?,?,?,'admin')`, username, hash, salt, time.Now().Unix())
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return User{}, "", ErrExists
@@ -102,14 +126,14 @@ func (s *Store) Register(ctx context.Context, username, password string) (User, 
 	if err := tx.Commit(); err != nil {
 		return User{}, "", fmt.Errorf("commit registration: %w", err)
 	}
-	return User{ID: id, Username: username}, token, nil
+	return User{ID: id, Username: username, Role: "admin"}, token, nil
 }
 
 // Login verifies credentials and creates a fresh session.
 func (s *Store) Login(ctx context.Context, username, password string) (User, string, error) {
 	var u User
 	var hash, salt []byte
-	err := s.db.QueryRowContext(ctx, `SELECT id,username,password_hash,password_salt FROM users WHERE username=? COLLATE NOCASE`, strings.TrimSpace(username)).Scan(&u.ID, &u.Username, &hash, &salt)
+	err := s.db.QueryRowContext(ctx, `SELECT id,username,role,disabled,password_hash,password_salt FROM users WHERE username=? COLLATE NOCASE`, strings.TrimSpace(username)).Scan(&u.ID, &u.Username, &u.Role, &u.Disabled, &hash, &salt)
 	if errors.Is(err, sql.ErrNoRows) {
 		// Keep the expensive password check on the missing-account path too.
 		_ = argon2.IDKey([]byte(password), []byte("assan-store-dummy-salt"), 2, 64*1024, 1, 32)
@@ -122,15 +146,19 @@ func (s *Store) Login(ctx context.Context, username, password string) (User, str
 		return User{}, "", ErrInvalid
 	}
 	actual := argon2.IDKey([]byte(password), salt, 2, 64*1024, 1, 32)
-	if !equal(actual, hash) {
+	if !equal(actual, hash) || u.Disabled {
 		return User{}, "", ErrInvalid
 	}
 	token, err := newToken()
 	if err != nil {
 		return User{}, "", err
 	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)`, digest(token), u.ID, time.Now().Add(sessionLifetime).Unix(), time.Now().Unix()); err != nil {
+	result, err := s.db.ExecContext(ctx, `INSERT INTO sessions(token_hash,user_id,expires_at,created_at) SELECT ?,id,?,? FROM users WHERE id=? AND disabled=0 AND password_hash=?`, digest(token), time.Now().Add(sessionLifetime).Unix(), time.Now().Unix(), u.ID, hash)
+	if err != nil {
 		return User{}, "", fmt.Errorf("create session: %w", err)
+	}
+	if n, err := result.RowsAffected(); err != nil || n != 1 {
+		return User{}, "", ErrInvalid
 	}
 	return u, token, nil
 }
@@ -138,7 +166,7 @@ func (s *Store) Login(ctx context.Context, username, password string) (User, str
 // UserForToken returns the user associated with an unexpired session token.
 func (s *Store) UserForToken(ctx context.Context, token string) (User, error) {
 	var u User
-	err := s.db.QueryRowContext(ctx, `SELECT users.id,users.username FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.token_hash=? AND sessions.expires_at>?`, digest(token), time.Now().Unix()).Scan(&u.ID, &u.Username)
+	err := s.db.QueryRowContext(ctx, `SELECT users.id,users.username,users.role FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.token_hash=? AND sessions.expires_at>? AND users.disabled=0`, digest(token), time.Now().Unix()).Scan(&u.ID, &u.Username, &u.Role)
 	if err != nil {
 		return User{}, ErrUnauth
 	}
@@ -153,7 +181,7 @@ func (s *Store) Logout(ctx context.Context, token string) error {
 
 // ChangePassword verifies the current password and revokes all account sessions.
 func (s *Store) ChangePassword(ctx context.Context, userID int64, oldPassword, newPassword string) error {
-	if len(newPassword) < 12 || len(newPassword) > 128 {
+	if !validPassword(newPassword) {
 		return ErrInvalid
 	}
 	var hash, salt []byte
@@ -184,7 +212,7 @@ func (s *Store) ChangePassword(ctx context.Context, userID int64, oldPassword, n
 
 // ResetPassword changes an account password from a trusted administrative command.
 func (s *Store) ResetPassword(ctx context.Context, username, newPassword string) error {
-	if len(newPassword) < 12 || len(newPassword) > 128 {
+	if !validPassword(newPassword) {
 		return ErrInvalid
 	}
 	var userID int64

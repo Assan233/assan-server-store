@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -27,7 +28,11 @@ func NewHandler(store *auth.Store, secureCookies, trustProxy bool) http.Handler 
 	})
 	api := &authAPI{store: store, secureCookies: secureCookies, trustProxy: trustProxy, limiter: newRateLimiter()}
 	mux.HandleFunc("GET /api/v1/auth/csrf", api.csrf)
-	mux.HandleFunc("POST /api/v1/auth/signup", api.csrfProtected(api.limited(api.signup)))
+	mux.HandleFunc("GET /api/v1/auth/setup", api.setupStatus)
+	mux.HandleFunc("POST /api/v1/auth/setup", api.csrfProtected(api.limited(api.signup)))
+	mux.HandleFunc("GET /api/v1/admin/users", api.adminOnly(api.users))
+	mux.HandleFunc("POST /api/v1/admin/users", api.csrfProtected(api.adminOnly(api.createMember)))
+	mux.HandleFunc("POST /api/v1/admin/users/{id}", api.csrfProtected(api.adminOnly(api.manageMember)))
 	mux.HandleFunc("POST /api/v1/auth/login", api.csrfProtected(api.limited(api.login)))
 	mux.HandleFunc("GET /api/v1/auth/me", api.me)
 	mux.HandleFunc("POST /api/v1/auth/logout", api.csrfProtected(api.logout))
@@ -78,7 +83,9 @@ func (a *authAPI) signup(w http.ResponseWriter, r *http.Request) {
 	}
 	u, token, err := a.store.Register(r.Context(), body.Username, body.Password)
 	if err != nil {
-		if errors.Is(err, auth.ErrExists) {
+		if errors.Is(err, auth.ErrClosed) {
+			writeError(w, 409, "setup_closed", "管理员已初始化，请登录。")
+		} else if errors.Is(err, auth.ErrExists) {
 			writeError(w, 409, "username_exists", "username already exists")
 		} else if errors.Is(err, auth.ErrInvalid) {
 			writeError(w, 400, "invalid_input", "username or password is invalid")
@@ -203,8 +210,76 @@ func decodeBody(w http.ResponseWriter, r *http.Request, out any) bool {
 	return true
 }
 func writeError(w http.ResponseWriter, status int, code, message string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	writeJSON(w, map[string]any{"error": map[string]string{"code": code, "message": message}})
+}
+
+func (a *authAPI) setupStatus(w http.ResponseWriter, r *http.Request) {
+	needed, err := a.store.NeedsSetup(r.Context())
+	if err != nil {
+		writeError(w, 500, "internal_error", "无法读取初始化状态")
+		return
+	}
+	writeJSON(w, map[string]any{"data": map[string]bool{"needsSetup": needed}})
+}
+func (a *authAPI) adminOnly(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u, err := a.currentUser(r)
+		if err != nil {
+			writeError(w, 401, "unauthenticated", "请先登录")
+			return
+		}
+		if u.Role != "admin" {
+			writeError(w, 403, "forbidden", "仅管理员可以管理用户")
+			return
+		}
+		next(w, r)
+	}
+}
+func (a *authAPI) users(w http.ResponseWriter, r *http.Request) {
+	users, err := a.store.Users(r.Context())
+	if err != nil {
+		writeError(w, 500, "internal_error", "读取用户失败")
+		return
+	}
+	writeJSON(w, map[string]any{"data": users})
+}
+func (a *authAPI) createMember(w http.ResponseWriter, r *http.Request) {
+	var body credentials
+	if !decodeBody(w, r, &body) {
+		return
+	}
+	a.managementResult(w, a.store.CreateMember(r.Context(), body.Username, body.Password))
+}
+func (a *authAPI) manageMember(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		writeError(w, 400, "invalid_input", "用户编号无效")
+		return
+	}
+	var body struct {
+		Action   string `json:"action"`
+		Password string `json:"password"`
+	}
+	if !decodeBody(w, r, &body) {
+		return
+	}
+	a.managementResult(w, a.store.ManageMember(r.Context(), id, body.Action, body.Password))
+}
+func (a *authAPI) managementResult(w http.ResponseWriter, err error) {
+	switch {
+	case err == nil:
+		w.WriteHeader(http.StatusNoContent)
+	case errors.Is(err, auth.ErrInvalid):
+		writeError(w, 400, "invalid_input", "用户名或密码无效；"+auth.PasswordRequirement)
+	case errors.Is(err, auth.ErrExists):
+		writeError(w, 409, "username_exists", "用户名已存在")
+	case errors.Is(err, auth.ErrForbidden):
+		writeError(w, 403, "forbidden", "不能通过子账号管理修改管理员")
+	default:
+		writeError(w, 500, "internal_error", "用户管理操作失败")
+	}
 }
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
