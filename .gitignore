@@ -29,5 +29,11 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+
+# Local builds and configuration
+/bin/
+.env.*
+!.env.example
+.DS_Store
