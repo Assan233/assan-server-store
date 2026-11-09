@@ -1,0 +1,50 @@
+internal/httpapi/router.go
+  s_d7988ab083ca0d::t_00c802b002d7d4 172,176,180-181
+  s_d7988ab083ca0d::t_798cfdddf403d3 21,43-46,63
+  s_d7988ab083ca0d::t_e4324ea9e65551 30-32
+  s_d7988ab083ca0d::t_619057a81f52b7 182
+.dockerignore
+  s_d7988ab083ca0d::t_7061f6ee382e1b 2
+internal/config/config.go
+  s_d7988ab083ca0d::t_e4324ea9e65551 81-83
+  s_d7988ab083ca0d::t_798cfdddf403d3 5,22,80,84
+  s_d7988ab083ca0d::t_7061f6ee382e1b 10,67-79,85
+internal/httpapi/music.go
+  s_d7988ab083ca0d::t_798cfdddf403d3 1-9,14-17,22,27-31,36-39,48-51,56-59,64,68,71-75,84-85
+  s_d7988ab083ca0d::t_e4324ea9e65551 10-13,18-21,23-26,32-35,40-47,52-55,60-63,65-67,69-70,76-83
+internal/config/config_test.go
+  s_d7988ab083ca0d::t_7061f6ee382e1b 4,42-61
+  s_d7988ab083ca0d::t_95fe54fb4af1f5 62
+internal/auth/auth.go
+  s_d7988ab083ca0d::t_798cfdddf403d3 83-89
+README.md
+  s_d7988ab083ca0d::t_7061f6ee382e1b 44,55-56
+  s_d7988ab083ca0d::t_d3b59f64397336 54,86
+cmd/server/main.go
+  s_d7988ab083ca0d::t_798cfdddf403d3 47
+docs/api.md
+  s_d7988ab083ca0d::t_d3b59f64397336 21-25,39-43
+  s_d7988ab083ca0d::t_df2e9d20d41b93 44
+internal/httpapi/music_test.go
+  s_d7988ab083ca0d::t_168d06cecb434c 38-42
+  s_d7988ab083ca0d::t_a34d75d5fd7a02 1-37,43-102
+internal/auth/music.go
+  s_d7988ab083ca0d::t_e4324ea9e65551 22-24,26-28,30-32,47-49,51-56,58-60,68-70
+  s_d7988ab083ca0d::t_798cfdddf403d3 1-21,25,29,33-46,50,57,61-67,71-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0f4b06a58ff68fdd5df5c40d3a375a0b39ba59f7",
+  "prompts": {},
+  "sessions": {
+    "s_d7988ab083ca0d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e41f81e07ffe8cKaeluKvzXU9w",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "caorongsen <caorongsen@zuoyebang.com>"
+    }
+  }
+}
