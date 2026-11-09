@@ -1,0 +1,54 @@
+internal/auth/auth.go
+  s_d7988ab083ca0d::t_8d5ff3b16586f4 27,66,71-77,82,89,108,129,136,149,169
+  s_d7988ab083ca0d::t_d94f9ec26ac17b 156-157
+  s_d7988ab083ca0d::t_8305d039c8e9cc 92,184,215
+  s_d7988ab083ca0d::t_e80750a27012a2 23-26,28,35-36,67-70,78-81,105-107,160-162
+internal/auth/password.go
+  s_d7988ab083ca0d::t_8305d039c8e9cc 1-23
+internal/httpapi/router_test.go
+  s_d7988ab083ca0d::t_e80750a27012a2 90-98,100-101,103-117
+  s_d7988ab083ca0d::t_ba680e7120a33e 59,72,89,99,102
+  s_d7988ab083ca0d::t_d94f9ec26ac17b 45
+cmd/reset-password/main.go
+  s_d7988ab083ca0d::t_8305d039c8e9cc 64
+internal/auth/password_test.go
+  s_d7988ab083ca0d::t_7059c9afa03cfb 9-12,24-26
+  s_d7988ab083ca0d::t_ba680e7120a33e 1-8,13-23,27-28
+README.md
+  s_d7988ab083ca0d::t_52283d85cf399e 81
+docs/api.md
+  s_d7988ab083ca0d::t_377b7cb52c9c95 26
+  s_d7988ab083ca0d::t_52283d85cf399e 12-15,18-20,27-30,32-56
+internal/auth/management_test.go
+  s_d7988ab083ca0d::t_7059c9afa03cfb 26-30
+  s_d7988ab083ca0d::t_ba680e7120a33e 45,48,58,64,68,74,77,83
+  s_d7988ab083ca0d::t_d94f9ec26ac17b 1-3,9-11,96
+  s_d7988ab083ca0d::t_e80750a27012a2 4-8,12-25,31-44,46-47,49-57,59-63,65-67,69-73,75-76,78-82,84-95
+internal/auth/management.go
+  s_d7988ab083ca0d::t_31573beb852e28 8-9
+  s_d7988ab083ca0d::t_8305d039c8e9cc 40,61
+  s_d7988ab083ca0d::t_8d5ff3b16586f4 1-3,10-13,17-20,35-38,53-57,100
+  s_d7988ab083ca0d::t_e80750a27012a2 4-7,14-16,21-34,39,41-52,58-60,62-99
+internal/httpapi/router.go
+  s_d7988ab083ca0d::t_e80750a27012a2 219-224,227-274,276-283
+  s_d7988ab083ca0d::t_8305d039c8e9cc 275
+  s_d7988ab083ca0d::t_5cfb562cb20865 13,31-35,86-88,213,217-218,225-226
+internal/auth/auth_test.go
+  s_d7988ab083ca0d::t_156485c2715845 18,28,31,34,38,46,49,62-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9a1e94677d31f5557fcb716d0a6d9fcf7df2428d",
+  "prompts": {},
+  "sessions": {
+    "s_d7988ab083ca0d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e41f81e07ffe8cKaeluKvzXU9w",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "caorongsen <caorongsen@zuoyebang.com>"
+    }
+  }
+}
