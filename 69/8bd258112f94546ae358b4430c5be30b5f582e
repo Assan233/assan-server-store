@@ -1,0 +1,21 @@
+Dockerfile
+  s_d7988ab083ca0d::t_987236eab5c665 5
+README.md
+  s_d7988ab083ca0d::t_987236eab5c665 66-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "698bd258112f94546ae358b4430c5be30b5f582e",
+  "prompts": {},
+  "sessions": {
+    "s_d7988ab083ca0d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e41f81e07ffe8cKaeluKvzXU9w",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "caorongsen <caorongsen@zuoyebang.com>"
+    }
+  }
+}
