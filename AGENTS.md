@@ -1,26 +1,28 @@
-# Repository instructions
+# 仓库协作规则
 
-## Scope and workflow
-- These rules apply repository-wide; a nested `AGENTS.md` adds rules for its subtree.
-- This is a personal Go backend deployed to NAS with Docker. Keep the baseline small; add infrastructure only for an actual feature.
-- Before editing, inspect the working tree and relevant code. Preserve unrelated changes.
-- Use a feature branch based on `main` and Conventional Commits (`feat:`, `fix:`, `docs:`). Commit and push only when explicitly requested.
+- 优先使用中文与用户交流，并使用中文编写面向用户的文案和文档；代码标识符遵循项目现有约定。
 
-## Architecture
-- `cmd/server` owns process startup, dependency wiring and shutdown. Business behavior belongs in `internal/<feature>`.
-- Keep HTTP transport in `internal/httpapi`; configuration loading and validation in `internal/config`.
-- Prefer the standard library. When adding a dependency, explain its purpose, run `go mod tidy`, and commit the resulting module files.
-- Introduce interfaces at consuming boundaries when needed; keep constructors explicit and state instance-owned.
-- Use Go doc comments for exported declarations, `gofmt` for formatting, wrapped errors with `%w`, and `context.Context` for cancellable work.
+## 范围与工作流程
+- 本文件适用于整个仓库；子目录的 `AGENTS.md` 可补充该目录的规则。
+- 本仓库是通过 Docker 部署到 NAS 的个人 Go 后端。保持基础架构精简，只为实际功能增加基础设施。
+- 修改前检查工作区和相关代码，保留无关改动。
+- 功能分支从 `main` 创建，提交信息遵循 Conventional Commits（`feat:`、`fix:`、`docs:`）；仅在明确要求时提交或推送。
 
-## Task-specific references
-- For API changes, read `internal/httpapi/AGENTS.md` and `docs/api.md` before editing routes.
-- For container, configuration or runtime changes, read the deployment and configuration sections of `README.md`; update them alongside behavior changes.
-- The sibling frontend is `../assan-fe-store`. Inspect its consumers before changing an API contract; edit that repository only when the task includes it.
+## 架构
+- `cmd/server` 负责进程启动、依赖组装和退出；业务逻辑放在 `internal/<feature>`。
+- HTTP 传输层放在 `internal/httpapi`，配置读取与校验放在 `internal/config`。
+- 优先使用标准库。增加依赖时说明用途、运行 `go mod tidy`，并将产生的模块文件纳入提交。
+- 按需在调用方边界定义接口；显式构造依赖，让状态归实例所有。
+- 导出声明添加 Go 文档注释；使用 `gofmt` 格式化、`%w` 包装错误，支持取消的操作传入 `context.Context`。
 
-## Verification and completion
-- Run `make check` and `make build` for Go changes. Add behavioral tests for new behavior and regressions, including invalid inputs.
-- For container changes, run `docker compose config --quiet` and `docker compose build`; verify health and shutdown when Docker is available.
-- Keep credentials in environment variables or external secrets, and logs free of credentials and request bodies.
-- Update the relevant documentation for configuration/API changes. Record breaking changes and migration steps in `docs/api.md` or `README.md`.
-- Report changed behavior, commands run and their outcomes, and any checks blocked by the environment.
+## 按任务查阅的文档
+- 修改接口前先阅读 `internal/httpapi/AGENTS.md` 和 `docs/api.md`。
+- 修改容器、配置或运行方式前阅读 `README.md` 中的部署与配置章节，并同步更新相关说明。
+- 配套前端位于 `../assan-fe-store`。修改接口契约前检查前端调用方；任务涉及前端时才修改该仓库。
+
+## 验证与完成标准
+- Go 代码改动运行 `make check` 和 `make build`。为新增行为和缺陷修复添加行为测试，覆盖无效输入。
+- 容器改动运行 `docker compose config --quiet` 和 `docker compose build`；Docker 可用时验证健康检查及退出行为。
+- 凭据通过环境变量或外部密钥提供，日志中避免记录凭据和请求体。
+- 配置或接口变更同步更新相关文档；在 `docs/api.md` 或 `README.md` 中记录破坏性变更及迁移步骤。
+- 汇报行为变更、验证命令及结果，以及受环境限制未能完成的检查。

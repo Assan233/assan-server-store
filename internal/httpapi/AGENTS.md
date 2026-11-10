@@ -1,9 +1,9 @@
-# HTTP boundary
+# HTTP 接口边界
 
-- Root `AGENTS.md` also applies here. `docs/api.md` is the frontend-facing contract; update it with route changes.
-- Register explicit method/path patterns with `http.ServeMux`. Business endpoints use `/api/v1`; operational endpoints remain outside that prefix.
-- Successful business responses use `{"data": ...}` and meaningful HTTP status codes. Define and document a JSON error contract when the first business error is introduced; router-generated 404/405 currently use standard-library text responses.
-- Validate parameters and JSON bodies before invoking business logic. Bound request bodies with `http.MaxBytesReader`, reject unknown fields where appropriate, and reject trailing JSON values.
-- Pass `r.Context()` to downstream work. HTTP handlers translate inputs and outputs; feature packages own business rules.
-- Test public behavior with `httptest`: success, invalid input, missing routes and unsupported methods. Avoid tests coupled to private helper implementation.
-- Frontend calls use a same-origin `/api` reverse proxy. If cross-origin access becomes necessary, introduce an explicit origin allowlist with preflight tests; CORS is not authentication.
+- 根目录的 `AGENTS.md` 同样适用。`docs/api.md` 是面向前端的接口契约，修改路由时同步更新。
+- 使用 `http.ServeMux` 显式注册方法和路径。业务接口以 `/api/v1` 开头，运维接口位于该前缀之外。
+- 业务成功响应使用 `{"data": ...}` 和恰当的 HTTP 状态码；业务错误遵循已定义的 `{"error":{"code":"...","message":"..."}}` 结构。路由器生成的 404/405 仍由标准库返回文本响应。
+- 调用业务逻辑前校验参数及 JSON 请求体。使用 `http.MaxBytesReader` 限制请求体大小，按需拒绝未知字段，并拒绝多余的 JSON 值。
+- 向下游传递 `r.Context()`。HTTP 处理函数负责转换输入输出，业务规则归功能包所有。
+- 使用 `httptest` 验证公开行为，包括成功、无效输入、未知路径和不支持的方法；测试避免依赖私有辅助函数的实现细节。
+- 前端通过同源 `/api` 反向代理调用接口。确需跨域时，显式配置允许的来源并测试预检请求；CORS 不能代替认证。
