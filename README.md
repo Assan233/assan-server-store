@@ -63,6 +63,8 @@ HTTP_PORT=9090 LOG_LEVEL=DEBUG go run ./cmd/server
 
 ## Docker / NAS 部署
 
+后端 Docker 构建默认通过 `https://proxy.golang.org,direct` 下载 Go 模块。NAS 构建容器若无法访问该地址，可以在构建时设置 `GOPROXY` 参数，使用可访问的 HTTPS Go 模块代理（仍保持模块校验）：`docker build --build-arg GOPROXY=https://goproxy.cn .`。通过相邻前端仓库的 Compose 部署时，在前端 `.env` 中设置 `GO_MODULE_PROXY=https://goproxy.cn`，Compose 会将它传给后端构建阶段；运行时无需该变量。
+
 ```sh
 cp .env.example .env
 docker compose config --quiet

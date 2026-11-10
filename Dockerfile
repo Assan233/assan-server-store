@@ -2,6 +2,7 @@
 FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
 WORKDIR /src
 COPY go.mod ./
+ARG GOPROXY=https://proxy.golang.org,direct
 RUN go mod download
 COPY . .
 ARG TARGETOS
