@@ -1,0 +1,22 @@
+internal/httpapi/AGENTS.md
+  s_d7988ab083ca0d::t_3689a5651e7021 1,3-9
+AGENTS.md
+  s_d7988ab083ca0d::t_e72afd68536630 3
+  s_d7988ab083ca0d::t_3689a5651e7021 1,5-9,11-16,18-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7eb609365d10fd04a7f17edc67834fb06b67c2e5",
+  "prompts": {},
+  "sessions": {
+    "s_d7988ab083ca0d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e41f81e07ffe8cKaeluKvzXU9w",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "caorongsen <caorongsen@zuoyebang.com>"
+    }
+  }
+}
