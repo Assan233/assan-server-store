@@ -44,7 +44,7 @@ func NewHandler(store *auth.Store, secureCookies, trustProxy bool, musicKey ...[
 	mux.HandleFunc("GET /api/v1/music/credential", api.musicCredential)
 	mux.HandleFunc("POST /api/v1/music/credential", api.csrfProtected(api.saveMusicCredential))
 	mux.HandleFunc("DELETE /api/v1/music/credential", api.csrfProtected(api.deleteMusicCredential))
-	mux.HandleFunc("POST /api/v1/music/commands", api.csrfProtected(api.enqueueMusicCommand))
+	mux.HandleFunc("POST /api/v1/music/commands", api.enqueueMusicCommand)
 	mux.HandleFunc("GET /api/v1/music/commands/next", api.nextMusicCommand)
 	return securityHeaders(mux)
 }

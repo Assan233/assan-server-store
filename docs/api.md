@@ -44,7 +44,7 @@
 
 前端 Nginx 在 `/music/` 下代理飞牛音乐资源，每个请求通过 `/api/v1/music/access` 校验当前会话；给上游的 Cookie 仅含 `music-token`。登录或登出应用库会清理浏览器中原先的 `music-token`。飞牛播放器与应用库同源，播放器脚本具有访问同源 API 的能力；需信任上游代码。密钥须在数据库之外长期保管，丢失后无法解密原有密码。
 
-远程播放控制：POST `/api/v1/music/commands` 请求体为 `{"action":"previous"}`、`{"action":"next"}` 或 `{"action":"toggle"}`，需有效应用库会话及 CSRF Cookie/请求头；无效操作返回 400 `invalid_input`，单个用户待处理操作达到 256 条时返回 429 `queue_full`。GET `/api/v1/music/commands/next` 需相同用户会话，无操作时返回 `action:null`，响应不缓存。每次请求仅按入队顺序原子取走一个该用户操作；返回即视为消费，即使播放器之后未执行也不重发。操作保存在 SQLite 中，可跨服务重启；删除用户会清除队列。播放器控件就绪时每 1.5 秒轮询，播放器页面未打开或不可用时操作保持待消费。发送端与播放器必须登录同一个应用库账号。
+远程播放控制：POST `/api/v1/music/commands` 请求体为 `{"action":"previous"}`、`{"action":"next"}` 或 `{"action":"toggle"}`，无需登录、Cookie 或 CSRF，供 Native Tools 等可信客户端直接调用；无效操作返回 400 `invalid_input`，队列达到 256 条时返回 429 `queue_full`。GET `/api/v1/music/commands/next` 同样无需鉴权，无操作时返回 `action:null`，响应不缓存。每次请求仅按入队顺序原子取走一个全局操作；返回即视为消费，即使播放器之后未执行也不重发。操作保存在 SQLite 中，可跨服务重启。播放器控件就绪时每 1.5 秒轮询，播放器页面未打开或不可用时操作保持待消费。
 
 ## 用户管理
 

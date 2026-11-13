@@ -7,16 +7,16 @@ import (
 	"fmt"
 )
 
-// ErrMusicQueueFull means the user's pending music commands reached the limit.
+// ErrMusicQueueFull means the pending music commands reached the limit.
 var ErrMusicQueueFull = errors.New("music command queue is full")
 
-// EnqueueMusicCommand records one command for the authenticated user's player.
-func (s *Store) EnqueueMusicCommand(ctx context.Context, userID int64, action string) error {
+// EnqueueMusicCommand records one command for the shared music player.
+func (s *Store) EnqueueMusicCommand(ctx context.Context, action string) error {
 	if action != "previous" && action != "next" && action != "toggle" {
 		return ErrInvalid
 	}
-	result, err := s.db.ExecContext(ctx, `INSERT INTO music_commands(user_id,action)
-		SELECT ?,? WHERE (SELECT COUNT(*) FROM music_commands WHERE user_id=?) < 256`, userID, action, userID)
+	result, err := s.db.ExecContext(ctx, `INSERT INTO public_music_commands(action)
+		SELECT ? WHERE (SELECT COUNT(*) FROM public_music_commands) < 256`, action)
 	if err != nil {
 		return fmt.Errorf("enqueue music command: %w", err)
 	}
@@ -30,13 +30,13 @@ func (s *Store) EnqueueMusicCommand(ctx context.Context, userID int64, action st
 	return nil
 }
 
-// ConsumeMusicCommand atomically removes and returns the oldest command for a user.
+// ConsumeMusicCommand atomically removes and returns the oldest shared command.
 // A command is considered consumed as soon as it is returned, without acknowledgement.
-func (s *Store) ConsumeMusicCommand(ctx context.Context, userID int64) (string, error) {
+func (s *Store) ConsumeMusicCommand(ctx context.Context) (string, error) {
 	var action string
-	err := s.db.QueryRowContext(ctx, `DELETE FROM music_commands WHERE id =
-		(SELECT id FROM music_commands WHERE user_id=? ORDER BY id LIMIT 1)
-		RETURNING action`, userID).Scan(&action)
+	err := s.db.QueryRowContext(ctx, `DELETE FROM public_music_commands WHERE id =
+		(SELECT id FROM public_music_commands ORDER BY id LIMIT 1)
+		RETURNING action`).Scan(&action)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}

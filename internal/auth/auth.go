@@ -95,6 +95,13 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrate music commands: %w", err)
 	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS public_music_commands (
+		id INTEGER PRIMARY KEY,
+		action TEXT NOT NULL CHECK(action IN ('previous','next','toggle'))
+	)`); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate public music commands: %w", err)
+	}
 	return &Store{db: db}, nil
 }
 
