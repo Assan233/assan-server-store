@@ -23,6 +23,8 @@
 | GET | `/api/v1/music/credential?login` | `{"data":{"username":"...","password":"..."}}` |
 | POST | `/api/v1/music/credential` | `204 No Content` |
 | DELETE | `/api/v1/music/credential` | `204 No Content` |
+| POST | `/api/v1/music/commands` | `204 No Content` |
+| GET | `/api/v1/music/commands/next` | `{"data":{"action":"next"}}` 或 `{"data":{"action":null}}` |
 
 成功 JSON 为 `application/json; charset=utf-8`。错误响应格式为 `{"error":{"code":"...","message":"..."}}`，并使用标准 HTTP 状态码；未知路径及不支持的方法由 ServeMux 返回 404/405。JSON 请求体最多 16 KiB，拒绝未知字段和尾随 JSON 值。Go ServeMux 的 GET 路由也支持 HEAD。
 
@@ -41,6 +43,8 @@
 所有音乐接口均需有效应用库会话（未登录 401），未配置 `MUSIC_CREDENTIAL_KEY` 时凭据接口返回 503。保存请求为 `{"username":"...","password":"..."}`，用户名最多 128 字节、密码最多 512 字节；POST 与 DELETE 都需要 `assan_csrf` Cookie 和 `X-CSRF-Token` 请求头。密码以 AES-256-GCM 加密，使用用户 ID 作为附加认证数据，每位用户独立保存；删除应用库用户会级联删除其音乐凭据。GET 状态只返回布尔值，`?login` 在自动登录时返回该用户的明文凭据，响应携带 `Cache-Control: no-store`。仅在可信的同源播放器上下文使用此接口。
 
 前端 Nginx 在 `/music/` 下代理飞牛音乐资源，每个请求通过 `/api/v1/music/access` 校验当前会话；给上游的 Cookie 仅含 `music-token`。登录或登出应用库会清理浏览器中原先的 `music-token`。飞牛播放器与应用库同源，播放器脚本具有访问同源 API 的能力；需信任上游代码。密钥须在数据库之外长期保管，丢失后无法解密原有密码。
+
+远程播放控制：POST `/api/v1/music/commands` 请求体为 `{"action":"previous"}`、`{"action":"next"}` 或 `{"action":"toggle"}`，需有效应用库会话及 CSRF Cookie/请求头；无效操作返回 400 `invalid_input`，单个用户待处理操作达到 256 条时返回 429 `queue_full`。GET `/api/v1/music/commands/next` 需相同用户会话，无操作时返回 `action:null`，响应不缓存。每次请求仅按入队顺序原子取走一个该用户操作；返回即视为消费，即使播放器之后未执行也不重发。操作保存在 SQLite 中，可跨服务重启；删除用户会清除队列。播放器控件就绪时每 1.5 秒轮询，播放器页面未打开或不可用时操作保持待消费。发送端与播放器必须登录同一个应用库账号。
 
 ## 用户管理
 

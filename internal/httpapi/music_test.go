@@ -80,6 +80,38 @@ func TestMusicCredentialsAreUserScopedAndRequireCSRF(t *testing.T) {
 		t.Fatalf("member login: %d", member.Code)
 	}
 	memberCookies := append(member.Result().Cookies(), csrfCookie)
+	commands := "/api/v1/music/commands"
+	if got := request("POST", commands, `{"action":"next"}`, []*http.Cookie{csrfCookie}, token.Data.Token).Code; got != 401 {
+		t.Fatalf("anonymous enqueue: %d", got)
+	}
+	if got := request("POST", commands, `{"action":"next"}`, adminCookies, "").Code; got != 403 {
+		t.Fatalf("enqueue without csrf: %d", got)
+	}
+	for _, body := range []string{`{"action":"play"}`, `{"action":"next","extra":1}`, `{"action":"toggle"} {}`} {
+		if got := request("POST", commands, body, adminCookies, token.Data.Token).Code; got != 400 {
+			t.Fatalf("invalid command %s: %d", body, got)
+		}
+	}
+	if got := request("GET", commands+"/next", "", nil, "").Code; got != 401 {
+		t.Fatalf("anonymous poll: %d", got)
+	}
+	for _, action := range []string{"previous", "next", "toggle"} {
+		if got := request("POST", commands, `{"action":"`+action+`"}`, adminCookies, token.Data.Token).Code; got != 204 {
+			t.Fatalf("enqueue %s: %d", action, got)
+		}
+	}
+	if got := request("GET", commands+"/next", "", memberCookies, ""); got.Code != 200 || !strings.Contains(got.Body.String(), `"action":null`) {
+		t.Fatalf("member sees admin commands: %d %s", got.Code, got.Body.String())
+	}
+	for _, action := range []string{"previous", "next", "toggle"} {
+		got := request("GET", commands+"/next", "", adminCookies, "")
+		if got.Code != 200 || !strings.Contains(got.Body.String(), `"action":"`+action+`"`) || got.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("consume %s: %d %s", action, got.Code, got.Body.String())
+		}
+	}
+	if got := request("GET", commands+"/next", "", adminCookies, ""); got.Code != 200 || !strings.Contains(got.Body.String(), `"action":null`) {
+		t.Fatalf("replayed command: %d %s", got.Code, got.Body.String())
+	}
 	if got := request("GET", path+"?login", "", memberCookies, "").Code; got != 404 {
 		t.Fatalf("member sees admin credential: %d", got)
 	}

@@ -87,6 +87,14 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrate music credentials: %w", err)
 	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS music_commands (
+		id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		action TEXT NOT NULL CHECK(action IN ('previous','next','toggle'))
+	);
+	CREATE INDEX IF NOT EXISTS music_commands_user_id ON music_commands(user_id,id)`); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate music commands: %w", err)
+	}
 	return &Store{db: db}, nil
 }
 
