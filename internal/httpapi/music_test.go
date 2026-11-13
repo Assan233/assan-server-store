@@ -81,23 +81,23 @@ func TestMusicCredentialsAreUserScopedAndRequireCSRF(t *testing.T) {
 	}
 	memberCookies := append(member.Result().Cookies(), csrfCookie)
 	commands := "/api/v1/music/commands"
-  for _, body := range []string{`{"action":"play"}`, `{"action":"next","extra":1}`, `{"action":"toggle"} {}`} {
-    if got := request("POST", commands, body, nil, "").Code; got != 400 {
-      t.Fatalf("invalid command %s: %d", body, got)
-    }
-  }
-  for _, action := range []string{"previous", "next", "toggle"} {
-    if got := request("POST", commands, `{"action":"`+action+`"}`, nil, "").Code; got != 204 {
-      t.Fatalf("enqueue %s: %d", action, got)
-    }
-  }
-  for _, action := range []string{"previous", "next", "toggle"} {
-    got := request("GET", commands+"/next", "", nil, "")
+	for _, body := range []string{`{"action":"play"}`, `{"action":"next","extra":1}`, `{"action":"toggle"} {}`} {
+		if got := request("POST", commands, body, nil, "").Code; got != 400 {
+			t.Fatalf("invalid command %s: %d", body, got)
+		}
+	}
+	for _, action := range []string{"previous", "next", "toggle"} {
+		if got := request("POST", commands, `{"action":"`+action+`"}`, nil, "").Code; got != 204 {
+			t.Fatalf("enqueue %s: %d", action, got)
+		}
+	}
+	for _, action := range []string{"previous", "next", "toggle"} {
+		got := request("GET", commands+"/next", "", nil, "")
 		if got.Code != 200 || !strings.Contains(got.Body.String(), `"action":"`+action+`"`) || got.Header().Get("Cache-Control") != "no-store" {
 			t.Fatalf("consume %s: %d %s", action, got.Code, got.Body.String())
 		}
 	}
-  if got := request("GET", commands+"/next", "", nil, ""); got.Code != 200 || !strings.Contains(got.Body.String(), `"action":null`) {
+	if got := request("GET", commands+"/next", "", nil, ""); got.Code != 200 || !strings.Contains(got.Body.String(), `"action":null`) {
 		t.Fatalf("replayed command: %d %s", got.Code, got.Body.String())
 	}
 	if got := request("GET", path+"?login", "", memberCookies, "").Code; got != 404 {
