@@ -1,0 +1,29 @@
+internal/httpapi/music_test.go
+  s_c9da21729585c9::t_84114211eca0ea 84-95,100
+internal/auth/music_commands.go
+  s_c9da21729585c9::t_9b883116f3f724 10,13-14,18-19,33,35,37-39
+internal/httpapi/music_commands.go
+  s_c9da21729585c9::t_9b883116f3f724 17,33
+internal/httpapi/router.go
+  s_c9da21729585c9::t_9b883116f3f724 47
+docs/api.md
+  s_c9da21729585c9::t_772419fb95a7cf 47
+internal/auth/auth.go
+  s_c9da21729585c9::t_9b883116f3f724 98-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "01e36c3050cca97e37faa7f856f168daff3e347b",
+  "prompts": {},
+  "sessions": {
+    "s_c9da21729585c9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2b87d4f0ffe1h7qsJw9DJSGqx",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "caorongsen <caorongsen@zuoyebang.com>"
+    }
+  }
+}
