@@ -1,0 +1,33 @@
+README.md
+  s_c9da21729585c9::t_b44d0f07b3bcb3 89
+internal/httpapi/router.go
+  s_c9da21729585c9::t_475e4d6039b3e4 47-48
+internal/auth/music_commands.go
+  s_c9da21729585c9::t_475e4d6039b3e4 1-47
+internal/httpapi/music_commands.go
+  s_c9da21729585c9::t_abc83516a865a3 1-53
+docs/api.md
+  s_c9da21729585c9::t_b1f941dc3063d5 26-27,47
+  s_c9da21729585c9::t_8bb58dbe89c5cf 48
+internal/auth/auth.go
+  s_c9da21729585c9::t_475e4d6039b3e4 90-97
+internal/httpapi/music_test.go
+  s_c9da21729585c9::t_7bbb25f953f7d2 84
+  s_c9da21729585c9::t_c0212218b7f1f4 83,85-114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b5de1d599ea447adb90ae62d28eebe504e022084",
+  "prompts": {},
+  "sessions": {
+    "s_c9da21729585c9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2b87d4f0ffe1h7qsJw9DJSGqx",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "caorongsen <caorongsen@zuoyebang.com>"
+    }
+  }
+}
