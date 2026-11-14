@@ -102,6 +102,14 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrate public music commands: %w", err)
 	}
+	if version < 2 {
+		if _, err := db.ExecContext(ctx, `BEGIN IMMEDIATE;
+		ALTER TABLE public_music_commands ADD COLUMN expires_at INTEGER NOT NULL DEFAULT 0;
+		PRAGMA user_version=2; COMMIT;`); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("migrate music command expiration: %w", err)
+		}
+	}
 	return &Store{db: db}, nil
 }
 

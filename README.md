@@ -86,7 +86,7 @@ Compose 自动使用 `.env` 插值：`HOST_PORT` 控制宿主机端口，`BIND_A
 - Auth API 提供首次管理员初始化、登录、当前用户、登出及修改密码；不再公开注册。管理员可添加、启用、禁用、删除子账号和重置子账号密码，管理接口强制校验角色。账号保存在本机 SQLite 数据卷，不依赖外部认证服务。认证依赖 HttpOnly 会话 Cookie 和 CSRF token，部署者应在开放访问前完成首次初始化。旧安装迁移/清空步骤见 `docs/api.md`。
 - 忘记密码时，可在交互终端运行 `docker compose exec -it api /usr/local/bin/reset-password USERNAME`；输入不会回显，重置会撤销该账户的全部会话。
 - 飞牛音乐集成按用户加密存储音乐登录凭据。前端 Compose 通过 `.env` 提供 `MUSIC_CREDENTIAL_KEY`；备份时同时安全保管该密钥，丢失或轮换后需要用户重新保存音乐账号。接口、安全边界与 Cookie 行为见 `docs/api.md`。
-- 飞牛音乐远程控制接口按用户在 SQLite 中顺序保存 `previous`、`next`、`toggle` 操作，播放器通过 GET 接口逐个领取；领取响应返回后立即删除，不提供确认重试。发送端（例如 Native Tools Android 客户端）与播放器必须登录同一应用库账号。队列容量、CSRF 和部署行为见 `docs/api.md`。
+- 飞牛音乐远程控制通过公开接口将 `previous`、`next`、`toggle` 操作保存在 SQLite 全局队列中，播放器逐个领取；下发即消费，不提供确认重试。操作入队 20 秒后过期，下一次入队或领取时清除，不再下发。升级时旧队列中无时间戳的操作视为过期。无需登录或 CSRF，队列容量和接口行为见 `docs/api.md`。
 
 ### 多架构镜像
 
