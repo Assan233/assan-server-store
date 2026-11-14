@@ -30,6 +30,11 @@ func (a *authAPI) enqueueMusicCommand(w http.ResponseWriter, r *http.Request) {
 
 func (a *authAPI) nextMusicCommand(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "仅支持 GET 领取音乐操作")
+		return
+	}
 	action, err := a.store.ConsumeMusicCommand(r.Context())
 	if err != nil {
 		writeError(w, 500, "internal_error", "读取音乐操作失败")

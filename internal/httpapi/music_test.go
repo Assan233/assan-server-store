@@ -120,3 +120,29 @@ func TestMusicCredentialsAreUserScopedAndRequireCSRF(t *testing.T) {
 		t.Fatalf("deleted member credential: %d", got)
 	}
 }
+
+func TestHeadCannotConsumeMusicCommand(t *testing.T) {
+	store, err := auth.Open(context.Background(), filepath.Join(t.TempDir(), "auth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	handler := NewHandler(store, false, false, nil)
+	path := "/api/v1/music/commands/next"
+	request := func(method, path, body string) *httptest.ResponseRecorder {
+		t.Helper()
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(method, path, strings.NewReader(body)))
+		return response
+	}
+	if got := request("POST", "/api/v1/music/commands", `{"action":"next"}`).Code; got != http.StatusNoContent {
+		t.Fatalf("enqueue: %d", got)
+	}
+	if got := request("HEAD", path, "").Code; got != http.StatusMethodNotAllowed {
+		t.Fatalf("HEAD must not consume a command: %d", got)
+	}
+	got := request("GET", path, "")
+	if got.Code != http.StatusOK || !strings.Contains(got.Body.String(), `"action":"next"`) {
+		t.Fatalf("HEAD consumed the command: %d %s", got.Code, got.Body.String())
+	}
+}
