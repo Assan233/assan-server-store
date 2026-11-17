@@ -110,6 +110,22 @@ func Open(ctx context.Context, path string) (*Store, error) {
 			return nil, fmt.Errorf("migrate music command expiration: %w", err)
 		}
 	}
+	if version < 3 {
+		if _, err := db.ExecContext(ctx, `BEGIN IMMEDIATE;
+		CREATE TABLE public_music_commands_new (
+			id INTEGER PRIMARY KEY,
+			action TEXT NOT NULL CHECK(action IN ('previous','next','toggle','like','delete')),
+			expires_at INTEGER NOT NULL
+		);
+		INSERT INTO public_music_commands_new(id,action,expires_at)
+			SELECT id,action,expires_at FROM public_music_commands;
+		DROP TABLE public_music_commands;
+		ALTER TABLE public_music_commands_new RENAME TO public_music_commands;
+		PRAGMA user_version=3; COMMIT;`); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("migrate music command actions: %w", err)
+		}
+	}
 	return &Store{db: db}, nil
 }
 

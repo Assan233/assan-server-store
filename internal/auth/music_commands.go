@@ -15,7 +15,7 @@ var ErrMusicQueueFull = errors.New("music command queue is full")
 
 // EnqueueMusicCommand records one command for the shared music player.
 func (s *Store) EnqueueMusicCommand(ctx context.Context, action string) error {
-	if action != "previous" && action != "next" && action != "toggle" {
+	if action != "previous" && action != "next" && action != "toggle" && action != "like" && action != "delete" {
 		return ErrInvalid
 	}
 	tx, err := s.db.BeginTx(ctx, nil)

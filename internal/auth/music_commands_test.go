@@ -108,3 +108,43 @@ func TestExistingMusicCommandsExpireOnMigration(t *testing.T) {
 		t.Fatalf("new command after migration: action=%q err=%v", action, err)
 	}
 }
+
+func TestMusicActionMigrationPreservesPendingCommands(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "auth.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.ExecContext(ctx, `CREATE TABLE public_music_commands (
+		id INTEGER PRIMARY KEY,
+		action TEXT NOT NULL CHECK(action IN ('previous','next','toggle')),
+		expires_at INTEGER NOT NULL
+	);
+	PRAGMA user_version=2`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO public_music_commands(id,action,expires_at) VALUES(7,'next',?)`, time.Now().Add(20*time.Second).UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	for _, action := range []string{"like", "delete"} {
+		if err := store.EnqueueMusicCommand(ctx, action); err != nil {
+			t.Fatalf("enqueue %s after migration: %v", action, err)
+		}
+	}
+	for _, want := range []string{"next", "like", "delete"} {
+		got, err := store.ConsumeMusicCommand(ctx)
+		if err != nil || got != want {
+			t.Fatalf("consume %s: got=%q err=%v", want, got, err)
+		}
+	}
+}

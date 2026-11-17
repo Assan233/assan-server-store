@@ -86,12 +86,12 @@ func TestMusicCredentialsAreUserScopedAndRequireCSRF(t *testing.T) {
 			t.Fatalf("invalid command %s: %d", body, got)
 		}
 	}
-	for _, action := range []string{"previous", "next", "toggle"} {
+	for _, action := range []string{"previous", "next", "toggle", "like", "delete"} {
 		if got := request("POST", commands, `{"action":"`+action+`"}`, nil, "").Code; got != 204 {
 			t.Fatalf("enqueue %s: %d", action, got)
 		}
 	}
-	for _, action := range []string{"previous", "next", "toggle"} {
+	for _, action := range []string{"previous", "next", "toggle", "like", "delete"} {
 		got := request("GET", commands+"/next", "", nil, "")
 		if got.Code != 200 || !strings.Contains(got.Body.String(), `"action":"`+action+`"`) || got.Header().Get("Cache-Control") != "no-store" {
 			t.Fatalf("consume %s: %d %s", action, got.Code, got.Body.String())
