@@ -1,0 +1,42 @@
+internal/video/service_test.go
+  s_67e5ba6678c4aa::t_8a4ad510ecd02b 1-79
+internal/video/media.go
+  s_67e5ba6678c4aa::t_e9864288a85cb0 1-80,86,88-141,143-214,216-250,252-256,258-273
+  s_67e5ba6678c4aa::t_b19d2cd2f36e82 81-85,87,142,215,251,257
+docs/api.md
+  s_67e5ba6678c4aa::t_7a06af769f8edf 28-30,52-56
+  s_67e5ba6678c4aa::t_ac1a8b93783109 57
+cmd/server/main.go
+  s_67e5ba6678c4aa::t_53651f5a5b5e95 19,44-47,52
+internal/httpapi/router.go
+  s_67e5ba6678c4aa::t_53651f5a5b5e95 18,23-31,40,57
+README.md
+  s_67e5ba6678c4aa::t_7a06af769f8edf 55-57
+internal/httpapi/video.go
+  s_67e5ba6678c4aa::t_53651f5a5b5e95 1-29,33-43,47-74,76-96
+  s_67e5ba6678c4aa::t_b19d2cd2f36e82 30-32,44-46,75
+internal/config/config.go
+  s_67e5ba6678c4aa::t_53651f5a5b5e95 24,89-91
+  s_67e5ba6678c4aa::t_b19d2cd2f36e82 16-23,25
+internal/video/service.go
+  s_67e5ba6678c4aa::t_455d158002bd29 1-19,21,25-27,30-34,36-44,46-57,63,68-234,236-258
+  s_67e5ba6678c4aa::t_b19d2cd2f36e82 20,22-24,28-29,35,45,58-62,64-67,235
+Dockerfile
+  s_67e5ba6678c4aa::t_53651f5a5b5e95 17,20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0664ee0db18dfcb976ebfb0f031cde93c0dde30a",
+  "prompts": {},
+  "sessions": {
+    "s_67e5ba6678c4aa": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_dfbbdab7affen2zpWrjTRxe52w",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "caorongsen <caorongsen@zuoyebang.com>"
+    }
+  }
+}
