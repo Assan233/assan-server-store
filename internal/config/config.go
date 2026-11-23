@@ -13,16 +13,15 @@ import (
 
 // Config holds validated runtime settings.
 type Config struct {
-	Port                int
-	LogLevel            slog.Level
-	ShutdownTimeout     time.Duration
-	DatabasePath        string
-	SecureCookies       bool
-	TrustProxy          bool
-	MusicKey            []byte
-	VideoResolverURL    string
-	VideoResolverOrigin string
-	VideoTempDir        string
+	Port            int
+	LogLevel        slog.Level
+	ShutdownTimeout time.Duration
+	DatabasePath    string
+	SecureCookies   bool
+	TrustProxy      bool
+	MusicKey        []byte
+	VideoProvider   string
+	VideoTempDir    string
 }
 
 // Load reads environment variables, applying defaults only to absent variables.
@@ -86,8 +85,7 @@ func Load() (Config, error) {
 		}
 		cfg.MusicKey = key
 	}
-	cfg.VideoResolverURL = strings.TrimSpace(os.Getenv("VIDEO_RESOLVER_URL"))
-	cfg.VideoResolverOrigin = strings.TrimSpace(os.Getenv("VIDEO_RESOLVER_ORIGIN"))
+	cfg.VideoProvider = strings.TrimSpace(os.Getenv("VIDEO_PROVIDER"))
 	cfg.VideoTempDir = os.Getenv("VIDEO_TEMP_DIR")
 	return cfg, nil
 }

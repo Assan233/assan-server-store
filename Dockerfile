@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     go build -trimpath -ldflags="-s -w" -o /out/reset-password ./cmd/reset-password
 
 FROM alpine:3.23
-RUN apk add --no-cache ca-certificates ffmpeg \
+RUN apk add --no-cache ca-certificates ffmpeg yt-dlp \
     && addgroup -S -g 10001 app \
     && adduser -S -D -H -u 10001 -G app app \
     && mkdir -p /data /video-cache && chown 10001:10001 /data /video-cache

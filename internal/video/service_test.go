@@ -1,3 +1,5 @@
+//go:build unix
+
 package video
 
 import (
@@ -7,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,20 +34,12 @@ func TestResolveAndPrepareEpisode(t *testing.T) {
 	mux.Handle("/media/", http.StripPrefix("/media/", http.FileServer(http.Dir(dir))))
 	upstream := httptest.NewServer(mux)
 	defer upstream.Close()
-	mux.HandleFunc("/resolve", func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query()
-		if q.Get("z") != "fixture" || q.Get("jx") != "https://v.youku.com/v_show/id_fixture.html?foo=bar" || q.Get("s1ig") != "11399" || !q.Has("g") || r.Header.Get("Origin") != upstream.URL {
-			t.Error("wrong youku_spi resolver request")
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		_, _ = io.WriteString(w, `{"data":[{"source":{"eps":[{"name":"第 1 集","url":"`+upstream.URL+`/media/stream.m3u8"}]}}]}`)
-	})
-	endpoint, err := url.Parse(upstream.URL + "/resolve?z=fixture")
-	if err != nil {
+	extractor := filepath.Join(dir, "yt-dlp")
+	script := "#!/bin/sh\nprintf '%s\\n' '{\"title\":\"第 1 集\",\"url\":\"" + upstream.URL + "/media/stream.m3u8\"}'\n"
+	if err := os.WriteFile(extractor, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
-	s := &Service{resolver: endpoint, origin: upstream.URL, dir: dir, bin: bin,
+	s := &Service{ytDLP: extractor, dir: dir, bin: bin,
 		client: upstream.Client(), resolveSlots: make(chan struct{}, 1), slots: make(chan struct{}, 1), files: make(map[string]download)}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

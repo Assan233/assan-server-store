@@ -4,9 +4,7 @@ package video
 import (
 	"context"
 	"crypto/rand"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,6 +20,7 @@ var (
 	ErrMissing     = errors.New("episode or download expired")
 	ErrBusy        = errors.New("downloader is busy")
 	ErrUpstream    = errors.New("unable to obtain video from upstream")
+	ErrRestricted  = errors.New("Youku restricted playback")
 )
 
 const (
@@ -41,10 +40,10 @@ type source struct {
 	URL *url.URL
 }
 
-type episodeList struct {
+type resolvedEpisode struct {
 	user    int64
 	expires time.Time
-	sources []source
+	source  source
 }
 
 type download struct {
@@ -55,32 +54,35 @@ type download struct {
 
 // Service owns short-lived episode references and a bounded set of MP4 files.
 type Service struct {
-	resolver     *url.URL
-	origin       string
 	dir          string
 	bin          string
+	ytDLP        string
 	client       *http.Client
 	resolveSlots chan struct{}
 	slots        chan struct{}
 	mu           sync.Mutex
-	lists        []episodeList
+	episodes     []resolvedEpisode
 	files        map[string]download
 }
 
-// New configures a youku_spi compatible resolver. An empty endpoint disables the tool.
-func New(endpoint, origin, dir string) (*Service, error) {
-	if endpoint == "" {
+// New configures yt-dlp and FFmpeg when the video tool is enabled.
+func New(provider, dir string) (*Service, error) {
+	switch provider {
+	case "", "disabled":
 		return nil, nil
+	case "yt-dlp":
+	default:
+		return nil, errors.New("VIDEO_PROVIDER must be yt-dlp or disabled")
 	}
-	resolver, err := url.Parse(endpoint)
-	if err != nil || !webURL(resolver) || resolver.Scheme != "https" {
-		return nil, errors.New("VIDEO_RESOLVER_URL must be a valid HTTPS URL")
+	ytDLP, err := exec.LookPath("yt-dlp")
+	if err != nil {
+		return nil, errors.New("video downloader requires yt-dlp on PATH")
 	}
 	bin, err := exec.LookPath("ffmpeg")
 	if err != nil {
 		return nil, errors.New("video downloader requires ffmpeg on PATH")
 	}
-	return &Service{resolver: resolver, origin: strings.TrimRight(origin, "/"), dir: dir, bin: bin,
+	return &Service{dir: dir, bin: bin, ytDLP: ytDLP,
 		client: publicClient(), resolveSlots: make(chan struct{}, 4), slots: make(chan struct{}, 2), files: make(map[string]download)}, nil
 }
 
@@ -88,21 +90,7 @@ func webURL(u *url.URL) bool {
 	return u != nil && (u.Scheme == "http" || u.Scheme == "https") && u.Hostname() != "" && u.User == nil
 }
 
-func youkuURL(raw string) (string, error) {
-	value, _, _ := strings.Cut(strings.TrimSpace(raw), "&")
-	u, err := url.Parse(value)
-	if err != nil || !webURL(u) || u.Path == "" || u.Path == "/" || u.Port() != "" || len(value) > 4096 {
-		return "", ErrInput
-	}
-	host := strings.ToLower(u.Hostname())
-	if host != "youku.com" && !strings.HasSuffix(host, ".youku.com") {
-		return "", ErrInput
-	}
-	u.Fragment = ""
-	return u.String(), nil
-}
-
-// Resolve submits the Youku link using the query and response contract of youku_spi.
+// Resolve creates an account-bound reference for the video returned by yt-dlp.
 func (s *Service) Resolve(ctx context.Context, user int64, raw string) ([]Episode, error) {
 	if s == nil {
 		return nil, ErrUnavailable
@@ -119,62 +107,24 @@ func (s *Service) Resolve(ctx context.Context, user int64, raw string) ([]Episod
 	}
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	u := *s.resolver
-	q := u.Query()
-	q.Set("jx", videoURL)
-	q.Set("s1ig", "11399")
-	q.Set("g", "")
-	u.RawQuery = q.Encode()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	item, err := s.resolveYTDLP(ctx, videoURL)
 	if err != nil {
+		return nil, err
+	}
+	media, err := url.Parse(item.URL)
+	if err != nil || !webURL(media) || len(item.URL) > 8192 {
 		return nil, ErrUpstream
 	}
-	req.Header.Set("Accept", "application/json, */*")
-	if s.origin != "" {
-		req.Header.Set("Origin", s.origin)
-		req.Header.Set("Referer", s.origin+"/")
-	}
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return nil, ErrUpstream
-	}
-	defer resp.Body.Close()
-	var result struct {
-		Data []struct {
-			Source struct {
-				Episodes []struct{ URL, Name string } `json:"eps"`
-			} `json:"source"`
-		} `json:"data"`
-	}
-	if resp.StatusCode != 200 || json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&result) != nil || len(result.Data) == 0 {
-		return nil, ErrUpstream
-	}
-	var sources []source
-	var episodes []Episode
-	for _, item := range result.Data[0].Source.Episodes {
-		media, err := url.Parse(item.URL)
-		if err != nil || !webURL(media) || len(item.URL) > 8192 {
-			continue
-		}
-		episode := Episode{rand.Text(), safeName(item.Name)}
-		episodes = append(episodes, episode)
-		sources = append(sources, source{episode, media})
-		if len(episodes) == 300 {
-			break
-		}
-	}
-	if len(episodes) == 0 {
-		return nil, ErrUpstream
-	}
+	episode := Episode{rand.Text(), safeName(item.Title)}
 	s.mu.Lock()
 	now := time.Now()
-	for len(s.lists) > 0 && (len(s.lists) >= 32 || !s.lists[0].expires.After(now)) {
-		s.lists[0] = episodeList{}
-		s.lists = s.lists[1:]
+	for len(s.episodes) > 0 && (len(s.episodes) >= 32 || !s.episodes[0].expires.After(now)) {
+		s.episodes[0] = resolvedEpisode{}
+		s.episodes = s.episodes[1:]
 	}
-	s.lists = append(s.lists, episodeList{user, now.Add(lifetime), sources})
+	s.episodes = append(s.episodes, resolvedEpisode{user, now.Add(lifetime), source{episode, media}})
 	s.mu.Unlock()
-	return episodes, nil
+	return []Episode{episode}, nil
 }
 
 func safeName(name string) string {
@@ -194,13 +144,10 @@ func safeName(name string) string {
 func (s *Service) lookup(user int64, id string) *source {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, list := range s.lists {
-		if list.user == user && list.expires.After(time.Now()) {
-			for _, item := range list.sources {
-				if item.ID == id {
-					return &item
-				}
-			}
+	now := time.Now()
+	for _, episode := range s.episodes {
+		if episode.user == user && episode.source.ID == id && episode.expires.After(now) {
+			return &episode.source
 		}
 	}
 	return nil

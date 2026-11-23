@@ -53,7 +53,7 @@
 
 三个端点均要求有效会话；两个 POST 均要求 CSRF。解析请求为 `{"url":"https://v.youku.com/..."}`；生成请求为 `{"episodeId":"..."}`，最多等待 4 分钟。剧集 ID 最长有效 10 分钟，文件 ID 有效 5 分钟且只能 GET 一次，不支持断点续传。两种 ID 都绑定当前用户，服务重启后失效。每个视频最多 1 GiB，全局最多同时保留两个正在处理或待取的文件。
 
-解析或生成失败返回 502 `video_upstream_error`；无效链接返回 400 `invalid_video_url`，剧集或文件不存在、过期或属于其他用户时返回 404 `video_expired`，并发超限返回 429 `video_busy`，尚未配置解析服务时 POST 返回 503 `video_unavailable`。源流地址和解析密钥仅由后端使用，不进入客户端响应。
+yt-dlp 模式接受 `https://v.youku.com/v_show/id_….html` 单视频链接，成功时返回一个条目。识别到优酷限制播放时返回 502 `video_playback_restricted`，其他解析或生成失败返回 502 `video_upstream_error`。无效链接返回 400 `invalid_video_url`，剧集或文件不存在、过期或属于其他用户时返回 404 `video_expired`，并发超限返回 429 `video_busy`，禁用或未配置解析服务时 POST 返回 503 `video_unavailable`。源流地址和解析密钥仅由后端使用，不进入客户端响应。
 
 ## 用户管理
 

@@ -90,6 +90,8 @@ func writeVideoError(w http.ResponseWriter, err error) {
 		writeError(w, 404, "video_expired", "剧集或文件已失效，请重新解析或生成。")
 	case errors.Is(err, video.ErrBusy):
 		writeError(w, 429, "video_busy", "视频服务正忙，请稍后重试。")
+	case errors.Is(err, video.ErrRestricted):
+		writeError(w, 502, "video_playback_restricted", "优酷限制了此视频的播放，请换一个可公开播放的视频链接。")
 	default:
 		writeError(w, 502, "video_upstream_error", "无法解析或生成视频。链接可能已失效、视频不受支持，或下载超过了时间或大小限制。")
 	}

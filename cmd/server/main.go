@@ -41,7 +41,7 @@ func run() error {
 		return err
 	}
 	defer db.Close()
-	videos, err := video.New(cfg.VideoResolverURL, cfg.VideoResolverOrigin, cfg.VideoTempDir)
+	videos, err := video.New(cfg.VideoProvider, cfg.VideoTempDir)
 	if err != nil {
 		return err
 	}
