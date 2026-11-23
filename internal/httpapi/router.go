@@ -15,10 +15,20 @@ import (
 	"time"
 
 	"github.com/Assan233/assan-server-store/internal/auth"
+	"github.com/Assan233/assan-server-store/internal/video"
 )
 
 // NewHandler returns the HTTP API router. Dependencies belong in constructors.
 func NewHandler(store *auth.Store, secureCookies, trustProxy bool, musicKey ...[]byte) http.Handler {
+	var key []byte
+	if len(musicKey) > 0 {
+		key = musicKey[0]
+	}
+	return NewHandlerWithVideo(store, secureCookies, trustProxy, key, nil)
+}
+
+// NewHandlerWithVideo includes the optional video downloader.
+func NewHandlerWithVideo(store *auth.Store, secureCookies, trustProxy bool, musicKey []byte, videos *video.Service) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"status": "ok"})
@@ -27,9 +37,7 @@ func NewHandler(store *auth.Store, secureCookies, trustProxy bool, musicKey ...[
 		writeJSON(w, map[string]any{"data": map[string]string{"message": "pong"}})
 	})
 	api := &authAPI{store: store, secureCookies: secureCookies, trustProxy: trustProxy, limiter: newRateLimiter()}
-	if len(musicKey) > 0 {
-		api.musicKey = musicKey[0]
-	}
+	api.musicKey = musicKey
 	mux.HandleFunc("GET /api/v1/auth/csrf", api.csrf)
 	mux.HandleFunc("GET /api/v1/auth/setup", api.setupStatus)
 	mux.HandleFunc("POST /api/v1/auth/setup", api.csrfProtected(api.limited(api.signup)))
@@ -46,6 +54,7 @@ func NewHandler(store *auth.Store, secureCookies, trustProxy bool, musicKey ...[
 	mux.HandleFunc("DELETE /api/v1/music/credential", api.csrfProtected(api.deleteMusicCredential))
 	mux.HandleFunc("POST /api/v1/music/commands", api.enqueueMusicCommand)
 	mux.HandleFunc("GET /api/v1/music/commands/next", api.nextMusicCommand)
+	api.registerVideo(mux, videos)
 	return securityHeaders(mux)
 }
 

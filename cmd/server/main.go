@@ -16,6 +16,7 @@ import (
 	"github.com/Assan233/assan-server-store/internal/auth"
 	"github.com/Assan233/assan-server-store/internal/config"
 	"github.com/Assan233/assan-server-store/internal/httpapi"
+	"github.com/Assan233/assan-server-store/internal/video"
 )
 
 func main() {
@@ -40,11 +41,15 @@ func run() error {
 		return err
 	}
 	defer db.Close()
+	videos, err := video.New(cfg.VideoResolverURL, cfg.VideoResolverOrigin, cfg.VideoTempDir)
+	if err != nil {
+		return err
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           httpapi.NewHandler(db, cfg.SecureCookies, cfg.TrustProxy, cfg.MusicKey),
+		Handler:           httpapi.NewHandlerWithVideo(db, cfg.SecureCookies, cfg.TrustProxy, cfg.MusicKey, videos),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

@@ -52,6 +52,9 @@ AGENTS.md              仓库级 AI 协作规则
 | `SECURE_COOKIES` | `false` | 通过 HTTPS 部署时设为 `true`，只经 TLS 发送认证 Cookie |
 | `TRUST_PROXY` | `false` | 仅当 API 无法绕过可信反向代理访问时设为 `true`，从 `X-Real-IP` 获取限流来源 |
 | `MUSIC_CREDENTIAL_KEY` | 空（禁用音乐凭据接口） | Base64 编码的 32 字节随机密钥，使用 `openssl rand -base64 32` 生成，更新部署时保持不变 |
+| `VIDEO_RESOLVER_URL` | 空（禁用视频下载） | 与 `youku_spi` 兼容的 HTTPS 接口地址，查询参数包含 `z` 值；启用时需安装 `ffmpeg` |
+| `VIDEO_RESOLVER_ORIGIN` | 空 | 解析服务要求的 Origin；同时用作 Referer 的来源 |
+| `VIDEO_TEMP_DIR` | 系统临时目录 | 用于暂存 MP4 的可写目录，和前端一起部署时 Compose 挂载到 `/video-cache` |
 
 本地只需在后端仓库的 `.env.local` 中写入一次 `MUSIC_CREDENTIAL_KEY=生成的密钥`，之后在后端仓库根目录运行 `make run`、`go run ./cmd/server` 或配置 GoLand 工作目录为仓库根目录即可。请妥善备份该文件；不要提交密钥，也不要在每次启动时重新生成。
 

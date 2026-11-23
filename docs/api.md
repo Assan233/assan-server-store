@@ -25,6 +25,9 @@
 | DELETE | `/api/v1/music/credential` | `204 No Content` |
 | POST | `/api/v1/music/commands` | `204 No Content` |
 | GET | `/api/v1/music/commands/next` | `{"data":{"action":"next"}}` 或 `{"data":{"action":null}}` |
+| POST | `/api/v1/video/resolve` | `{"data":[{"id":"...","name":"第 1 集"}]}` |
+| POST | `/api/v1/video/prepare` | `{"data":{"id":"..."}}` |
+| GET | `/api/v1/video/file/{id}` | `video/mp4` 附件 |
 
 成功 JSON 为 `application/json; charset=utf-8`。错误响应格式为 `{"error":{"code":"...","message":"..."}}`，并使用标准 HTTP 状态码；未知路径及不支持的方法由 ServeMux 返回 404/405。JSON 请求体最多 16 KiB，拒绝未知字段和尾随 JSON 值。Go ServeMux 的 GET 路由通常也支持 HEAD，但领取音乐操作的接口仅接受 GET，以免 HEAD 请求消耗队列。
 
@@ -45,6 +48,12 @@
 前端 Nginx 在 `/music/` 下代理飞牛音乐资源，每个请求通过 `/api/v1/music/access` 校验当前会话；给上游的 Cookie 仅含 `music-token`。登录或登出应用库会清理浏览器中原先的 `music-token`。飞牛播放器与应用库同源，播放器脚本具有访问同源 API 的能力；需信任上游代码。密钥须在数据库之外长期保管，丢失后无法解密原有密码。
 
 远程播放控制：POST `/api/v1/music/commands` 请求体的 `action` 为 `previous`（上一首）、`next`（下一首）、`toggle`（播放/暂停）、`like`（收藏/取消收藏）或 `delete`（删除歌曲）。无需登录、Cookie 或 CSRF，供 Native Tools 等客户端直接调用；无效操作返回 400 `invalid_input`，队列达到 256 条时返回 429 `queue_full`。GET `/api/v1/music/commands/next` 同样无需鉴权，HEAD 返回 405 且不消费操作；无操作时返回 `action:null`，响应不缓存。每次请求仅按入队顺序原子取走一个全局操作；返回即视为消费，即使播放器之后未执行也不重发。操作保存在 SQLite 中，可跨服务重启；入队后 **20 秒**到期，过期操作在下一次入队或领取时清除，不占用队列容量，也不会下发。升级时原有缺少入队时间的待消费操作视为过期，在下一次访问队列时清除。播放器控件就绪时每 2 秒轮询，播放器页面未打开或不可用时操作最多保留 20 秒。`delete` 由播放器通过同域代理调用飞牛音乐 `play-history/list?page=1&size=1` 获取最近一首播放歌曲的 GUID，再向 `folder-view/delete` 发送永久删除请求；最近播放的歌曲不一定等于当前正在播放的歌曲，删除不可撤销。`like` 点击收藏按钮（当前收藏状态下可能取消收藏）。升级数据库至版本 3 时重建队列表以扩展 action 约束并保留未过期的既有操作。
+
+## 视频下载
+
+三个端点均要求有效会话；两个 POST 均要求 CSRF。解析请求为 `{"url":"https://v.youku.com/..."}`；生成请求为 `{"episodeId":"..."}`，最多等待 4 分钟。剧集 ID 最长有效 10 分钟，文件 ID 有效 5 分钟且只能 GET 一次，不支持断点续传。两种 ID 都绑定当前用户，服务重启后失效。每个视频最多 1 GiB，全局最多同时保留两个正在处理或待取的文件。
+
+解析或生成失败返回 502 `video_upstream_error`；无效链接返回 400 `invalid_video_url`，剧集或文件不存在、过期或属于其他用户时返回 404 `video_expired`，并发超限返回 429 `video_busy`，尚未配置解析服务时 POST 返回 503 `video_unavailable`。源流地址和解析密钥仅由后端使用，不进入客户端响应。
 
 ## 用户管理
 
