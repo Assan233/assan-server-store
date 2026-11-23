@@ -1,0 +1,45 @@
+README.md
+  s_67e5ba6678c4aa::t_ade94b28c6e5d9 55
+internal/video/ytdlp_test.go
+  s_67e5ba6678c4aa::t_447c92ced5f0a8 1-13,15-16,18-35,37-39,42-48
+  s_67e5ba6678c4aa::t_a2b5074ca0f996 36
+  s_67e5ba6678c4aa::t_291838fddc94b1 40-41
+  s_67e5ba6678c4aa::t_ade94b28c6e5d9 14,17
+internal/httpapi/video.go
+  s_67e5ba6678c4aa::t_d13aa28c4d0989 93-94
+cmd/server/main.go
+  s_67e5ba6678c4aa::t_1367bd7bdbdc67 44
+internal/video/ytdlp.go
+  s_67e5ba6678c4aa::t_a84001f9342b24 1-15,18,21-23,25-26,33-43,47,49,53,55-56,58-59,61-62,64
+  s_67e5ba6678c4aa::t_1367bd7bdbdc67 16-17,19-20,24,27-32,46,48,50,52,54
+  s_67e5ba6678c4aa::t_447c92ced5f0a8 44-45,51,57,60,63
+Dockerfile
+  s_67e5ba6678c4aa::t_d13aa28c4d0989 17
+internal/config/config.go
+  s_67e5ba6678c4aa::t_30c586618b8d7a 16-24
+  s_67e5ba6678c4aa::t_d13aa28c4d0989 88
+docs/api.md
+  s_67e5ba6678c4aa::t_d13aa28c4d0989 56
+internal/video/service_test.go
+  s_67e5ba6678c4aa::t_ade94b28c6e5d9 1-2,37-39,42
+internal/video/service.go
+  s_67e5ba6678c4aa::t_a84001f9342b24 23,59,70,73-74,112
+  s_67e5ba6678c4aa::t_1367bd7bdbdc67 68-69,71,75,77-79,85,93,110,114-115,118,127
+  s_67e5ba6678c4aa::t_a2b5074ca0f996 43,46,64,121-123,125,147-150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3a76f45e8c9a13577227eeef5318e2444be7250d",
+  "prompts": {},
+  "sessions": {
+    "s_67e5ba6678c4aa": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_dfbbdab7affen2zpWrjTRxe52w",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "caorongsen <caorongsen@zuoyebang.com>"
+    }
+  }
+}
