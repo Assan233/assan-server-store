@@ -224,7 +224,7 @@ func (r relayReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func (s *Service) merge(ctx context.Context, u *url.URL) (*os.File, error) {
+func (s *Service) merge(ctx context.Context, u *url.URL, extension string) (*os.File, error) {
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -232,7 +232,7 @@ func (s *Service) merge(ctx context.Context, u *url.URL) (*os.File, error) {
 	defer listener.Close()
 	relay := &mediaRelay{client: s.client, host: listener.Addr().String(), urls: make(map[string]*url.URL), paths: make(map[string]string)}
 	relay.remaining.Store(maxVideoBytes)
-	entry, err := relay.register(u, ".m3u8")
+	entry, err := relay.register(u, extension)
 	if err != nil {
 		return nil, err
 	}
@@ -249,8 +249,12 @@ func (s *Service) merge(ctx context.Context, u *url.URL) (*os.File, error) {
 		return nil, err
 	}
 	local := "http://" + relay.host
+	demuxer := "hls"
+	if extension == ".mp4" {
+		demuxer = "mov"
+	}
 	cmd := exec.CommandContext(ctx, s.bin, "-nostdin", "-loglevel", "error", "-xerror",
-		"-protocol_whitelist", "http,httpproxy,tcp,crypto", "-http_proxy", local, "-i", local+entry,
+		"-protocol_whitelist", "http,httpproxy,tcp,crypto", "-http_proxy", local, "-f", demuxer, "-i", local+entry,
 		"-map", "0:v:0", "-map", "0:a:0?", "-c", "copy", "-movflags", "+frag_keyframe+empty_moov",
 		"-fs", fmt.Sprint(maxVideoBytes), "-f", "mp4", "pipe:1")
 	// Force the proxy even for nested HLS requests and don't expose API secrets.

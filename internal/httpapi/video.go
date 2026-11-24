@@ -85,7 +85,7 @@ func writeVideoError(w http.ResponseWriter, err error) {
 	case errors.Is(err, video.ErrUnavailable):
 		writeError(w, 503, "video_unavailable", "服务端尚未配置视频解析服务。")
 	case errors.Is(err, video.ErrInput):
-		writeError(w, 400, "invalid_video_url", "请输入有效的优酷视频链接。")
+		writeError(w, 400, "invalid_video_url", "请输入公开的 MP4、M3U8 直链或有效的优酷单视频链接。")
 	case errors.Is(err, video.ErrMissing):
 		writeError(w, 404, "video_expired", "剧集或文件已失效，请重新解析或生成。")
 	case errors.Is(err, video.ErrBusy):

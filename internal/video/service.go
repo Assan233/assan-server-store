@@ -1,4 +1,4 @@
-// Package video resolves Youku episodes and prepares temporary MP4 downloads.
+// Package video resolves video links and prepares temporary MP4 downloads.
 package video
 
 import (
@@ -9,13 +9,14 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"sync"
 	"time"
 )
 
 var (
-	ErrInput       = errors.New("invalid Youku URL")
+	ErrInput       = errors.New("invalid video URL")
 	ErrUnavailable = errors.New("downloader is not configured")
 	ErrMissing     = errors.New("episode or download expired")
 	ErrBusy        = errors.New("downloader is busy")
@@ -37,7 +38,8 @@ type Episode struct {
 
 type source struct {
 	Episode
-	URL *url.URL
+	URL       *url.URL
+	Extension string
 }
 
 type resolvedEpisode struct {
@@ -90,10 +92,21 @@ func webURL(u *url.URL) bool {
 	return u != nil && (u.Scheme == "http" || u.Scheme == "https") && u.Hostname() != "" && u.User == nil
 }
 
-// Resolve creates an account-bound reference for the video returned by yt-dlp.
+// Resolve creates an account-bound reference for a direct media URL or a Youku video page.
 func (s *Service) Resolve(ctx context.Context, user int64, raw string) ([]Episode, error) {
 	if s == nil {
 		return nil, ErrUnavailable
+	}
+	raw = strings.TrimSpace(raw)
+	media, err := url.Parse(raw)
+	if err != nil || !webURL(media) || len(raw) > 4096 {
+		return nil, ErrInput
+	}
+	media.Fragment = ""
+	ext := path.Ext(media.Path)
+	switch strings.ToLower(ext) {
+	case ".mp4", ".m3u8":
+		return s.remember(user, media, strings.ToLower(ext), strings.TrimSuffix(path.Base(media.Path), ext)), nil
 	}
 	videoURL, err := youkuURL(raw)
 	if err != nil {
@@ -111,20 +124,24 @@ func (s *Service) Resolve(ctx context.Context, user int64, raw string) ([]Episod
 	if err != nil {
 		return nil, err
 	}
-	media, err := url.Parse(item.URL)
+	media, err = url.Parse(item.URL)
 	if err != nil || !webURL(media) || len(item.URL) > 8192 {
 		return nil, ErrUpstream
 	}
-	episode := Episode{rand.Text(), safeName(item.Title)}
+	return s.remember(user, media, ".m3u8", item.Title), nil
+}
+
+func (s *Service) remember(user int64, media *url.URL, extension, title string) []Episode {
+	episode := Episode{rand.Text(), safeName(title)}
 	s.mu.Lock()
 	now := time.Now()
 	for len(s.episodes) > 0 && (len(s.episodes) >= 32 || !s.episodes[0].expires.After(now)) {
 		s.episodes[0] = resolvedEpisode{}
 		s.episodes = s.episodes[1:]
 	}
-	s.episodes = append(s.episodes, resolvedEpisode{user, now.Add(lifetime), source{episode, media}})
+	s.episodes = append(s.episodes, resolvedEpisode{user, now.Add(lifetime), source{episode, media, extension}})
 	s.mu.Unlock()
-	return []Episode{episode}, nil
+	return []Episode{episode}
 }
 
 func safeName(name string) string {
@@ -169,7 +186,7 @@ func (s *Service) Prepare(ctx context.Context, user int64, id string) (string, e
 	}
 	ctx, cancel := context.WithTimeout(ctx, MaxDuration)
 	defer cancel()
-	file, err := s.merge(ctx, item.URL)
+	file, err := s.merge(ctx, item.URL, item.Extension)
 	if err != nil || ctx.Err() != nil {
 		if file != nil {
 			_ = file.Close()

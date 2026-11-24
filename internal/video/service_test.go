@@ -70,3 +70,48 @@ func TestResolveAndPrepareEpisode(t *testing.T) {
 		t.Fatal("download ID was reusable")
 	}
 }
+
+func TestPrepareDirectMedia(t *testing.T) {
+	bin := os.Getenv("TEST_FFMPEG")
+	if bin == "" {
+		var err error
+		bin, err = exec.LookPath("ffmpeg")
+		if err != nil {
+			t.Skip("ffmpeg is not installed")
+		}
+	}
+	dir := t.TempDir()
+	for _, name := range []string{"clip.MP4", "clip.m3u8"} {
+		format := "mp4"
+		if name == "clip.m3u8" {
+			format = "hls"
+		}
+		if out, err := exec.Command(bin, "-nostdin", "-f", "lavfi", "-i", "color=size=64x64:rate=24", "-t", "1", "-c:v", "libx264", "-f", format, filepath.Join(dir, name)).CombinedOutput(); err != nil {
+			t.Fatalf("create fixture: %v: %s", err, out)
+		}
+		t.Run(name, func(t *testing.T) {
+			upstream := httptest.NewServer(http.FileServer(http.Dir(dir)))
+			defer upstream.Close()
+			s := &Service{dir: dir, bin: bin, client: upstream.Client(), slots: make(chan struct{}, 1), files: make(map[string]download)}
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			items, err := s.Resolve(ctx, 1, upstream.URL+"/"+name+"?signature=test")
+			if err != nil || len(items) != 1 || items[0].Name != "clip" {
+				t.Fatalf("resolve: %+v, %v", items, err)
+			}
+			token, err := s.Prepare(ctx, 1, items[0].ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			file, name, release := s.Take(1, token)
+			if file == nil {
+				t.Fatal("missing MP4")
+			}
+			defer release()
+			data, err := io.ReadAll(file)
+			if err != nil || name != "clip.mp4" || len(data) < 8 || string(data[4:8]) != "ftyp" || !bytes.Contains(data, []byte("mdat")) {
+				t.Fatalf("expected MP4 with media, got %q (%d bytes): %v", name, len(data), err)
+			}
+		})
+	}
+}
