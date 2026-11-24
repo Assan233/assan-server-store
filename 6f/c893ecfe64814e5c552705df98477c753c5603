@@ -1,0 +1,23 @@
+internal/httpapi/nas.go
+  s_9a3e8dfc4aef55::t_988b8c464bbeab 8,71-72
+README.md
+  s_9a3e8dfc4aef55::t_988b8c464bbeab 57
+internal/nas/service_test.go
+  s_9a3e8dfc4aef55::t_988b8c464bbeab 58-61,83-86,93,98-101,107,111-112,115,118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6fc893ecfe64814e5c552705df98477c753c5603",
+  "prompts": {},
+  "sessions": {
+    "s_9a3e8dfc4aef55": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df2ddd0d2ffewqL2zw7fB9RfH1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "caorongsen <caorongsen@zuoyebang.com>"
+    }
+  }
+}
