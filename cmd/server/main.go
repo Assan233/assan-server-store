@@ -16,6 +16,7 @@ import (
 	"github.com/Assan233/assan-server-store/internal/auth"
 	"github.com/Assan233/assan-server-store/internal/config"
 	"github.com/Assan233/assan-server-store/internal/httpapi"
+	"github.com/Assan233/assan-server-store/internal/nas"
 	"github.com/Assan233/assan-server-store/internal/video"
 )
 
@@ -45,11 +46,18 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	media, err := nas.New(cfg.NASMediaDir)
+	if err != nil {
+		return err
+	}
+	if media != nil {
+		defer media.Close()
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           httpapi.NewHandlerWithVideo(db, cfg.SecureCookies, cfg.TrustProxy, cfg.MusicKey, videos),
+		Handler:           httpapi.NewHandlerWithMedia(db, cfg.SecureCookies, cfg.TrustProxy, cfg.MusicKey, videos, media),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

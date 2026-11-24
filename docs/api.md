@@ -55,6 +55,18 @@
 
 接受路径以 `.mp4` 或 `.m3u8` 结尾的公开 HTTP(S) 直链，以及 `https://v.youku.com/v_show/id_….html` 单视频页面，成功时返回一个条目。直链在生成文件时才会被访问，目标和跳转仅允许公开 IPv4 地址。识别到优酷限制播放时返回 502 `video_playback_restricted`，其他解析或生成失败返回 502 `video_upstream_error`。无效链接返回 400 `invalid_video_url`，剧集或文件不存在、过期或属于其他用户时返回 404 `video_expired`，并发超限返回 429 `video_busy`，禁用或未配置解析服务时 POST 返回 503 `video_unavailable`。源流地址仅由后端使用，不进入客户端响应。
 
+## NAS 媒体
+
+要求管理员会话；两项 POST 同时要求 CSRF。仅接受 `NAS_MEDIA_DIR` 下的相对路径，`.` 表示根目录。未配置时返回 `503 nas_unavailable`。
+
+| 方法和路径 | 请求 | 成功时的 `data` |
+| --- | --- | --- |
+| `GET /api/v1/nas/entries` | 查询参数 `path`、`kind`（`video`、`audio` 或 `folder`） | `[{"name":"子目录","directory":true}]` |
+| `POST /api/v1/nas/convert` | `{"source":"影片/a.mp4","directory":"音频"}` | `{"path":"音频/a.mp3"}` |
+| `POST /api/v1/nas/rename` | `{"source":"音频/a.flac"}` | `{"path":"音频/歌曲标题.flac"}` |
+
+转换提取 MP4/MKV 第一条音轨。重命名读取嵌入的标题标签，不重新编码。目标已存在返回 `409 nas_conflict`；缺少可用标题返回 `422 nas_no_title`。转换处理时限 15 分钟；同时仅处理一项媒体写操作。
+
 ## 用户管理
 
 所有 `/api/v1/admin/users` 接口要求有效管理员会话：未登录 401，子账号 403。列表不包含密码哈希或盐。添加请求为 `{"username":"...","password":"..."}`，只能创建 member。

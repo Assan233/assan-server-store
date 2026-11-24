@@ -54,6 +54,7 @@ AGENTS.md              仓库级 AI 协作规则
 | `MUSIC_CREDENTIAL_KEY` | 空（禁用音乐凭据接口） | Base64 编码的 32 字节随机密钥，使用 `openssl rand -base64 32` 生成，更新部署时保持不变 |
 | `VIDEO_PROVIDER` | 空（禁用） | `yt-dlp` 启用视频下载助手，支持公开 MP4/M3U8 直链和单条优酷视频页面（需 `yt-dlp` 与 `ffmpeg`）；`disabled` 禁用。配套 Compose 默认 `yt-dlp` |
 | `VIDEO_TEMP_DIR` | 系统临时目录 | 用于暂存 MP4 的可写目录，和前端一起部署时 Compose 挂载到 `/video-cache` |
+| `NAS_MEDIA_DIR` | 空（禁用） | NAS 媒体根目录，仅管理员可访问。启用需 `ffmpeg`、`ffprobe`（支持 `fd:` 协议，建议 8.x）及目录读写权限；与前端一起部署时，可在 `compose.yaml` 的 `api.volumes` 中挂载宿主机目录到 `/nas-media` |
 
 本地只需在后端仓库的 `.env.local` 中写入一次 `MUSIC_CREDENTIAL_KEY=生成的密钥`，之后在后端仓库根目录运行 `make run`、`go run ./cmd/server` 或配置 GoLand 工作目录为仓库根目录即可。请妥善备份该文件；不要提交密钥，也不要在每次启动时重新生成。
 

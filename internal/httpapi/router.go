@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Assan233/assan-server-store/internal/auth"
+	"github.com/Assan233/assan-server-store/internal/nas"
 	"github.com/Assan233/assan-server-store/internal/video"
 )
 
@@ -29,6 +30,11 @@ func NewHandler(store *auth.Store, secureCookies, trustProxy bool, musicKey ...[
 
 // NewHandlerWithVideo includes the optional video downloader.
 func NewHandlerWithVideo(store *auth.Store, secureCookies, trustProxy bool, musicKey []byte, videos *video.Service) http.Handler {
+	return NewHandlerWithMedia(store, secureCookies, trustProxy, musicKey, videos, nil)
+}
+
+// NewHandlerWithMedia includes the optional video downloader and NAS media tools.
+func NewHandlerWithMedia(store *auth.Store, secureCookies, trustProxy bool, musicKey []byte, videos *video.Service, media *nas.Service) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"status": "ok"})
@@ -55,6 +61,7 @@ func NewHandlerWithVideo(store *auth.Store, secureCookies, trustProxy bool, musi
 	mux.HandleFunc("POST /api/v1/music/commands", api.enqueueMusicCommand)
 	mux.HandleFunc("GET /api/v1/music/commands/next", api.nextMusicCommand)
 	api.registerVideo(mux, videos)
+	api.registerNAS(mux, media)
 	return securityHeaders(mux)
 }
 

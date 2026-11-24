@@ -22,6 +22,7 @@ type Config struct {
 	MusicKey        []byte
 	VideoProvider   string
 	VideoTempDir    string
+	NASMediaDir     string
 }
 
 // Load reads environment variables, applying defaults only to absent variables.
@@ -87,5 +88,6 @@ func Load() (Config, error) {
 	}
 	cfg.VideoProvider = strings.TrimSpace(os.Getenv("VIDEO_PROVIDER"))
 	cfg.VideoTempDir = os.Getenv("VIDEO_TEMP_DIR")
+	cfg.NASMediaDir = os.Getenv("NAS_MEDIA_DIR")
 	return cfg, nil
 }

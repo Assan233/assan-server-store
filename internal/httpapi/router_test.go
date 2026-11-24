@@ -112,6 +112,21 @@ func TestSetupRequiresCSRFAndCreatesSession(t *testing.T) {
 	if got := request("GET", "/api/v1/admin/users", "", memberCookies, "").Code; got != 403 {
 		t.Fatalf("member list = %d", got)
 	}
+	const entries = "/api/v1/nas/entries?kind=video"
+	if got := request("GET", entries, "", nil, "").Code; got != 401 {
+		t.Fatalf("anonymous NAS list = %d", got)
+	}
+	if got := request("GET", entries, "", memberCookies, "").Code; got != 403 {
+		t.Fatalf("member NAS list = %d", got)
+	}
+	if got := request("GET", entries, "", adminCookies, "").Code; got != 503 {
+		t.Fatalf("disabled NAS list = %d", got)
+	}
+	for _, endpoint := range []string{"convert", "rename"} {
+		if got := request("POST", "/api/v1/nas/"+endpoint, `{}`, adminCookies, "").Code; got != 403 {
+			t.Fatalf("NAS %s without CSRF = %d", endpoint, got)
+		}
+	}
 	if got := request("POST", "/api/v1/admin/users/1", `{"action":"delete"}`, adminCookies, csrfBody.Data.Token).Code; got != 403 {
 		t.Fatalf("delete admin = %d", got)
 	}
