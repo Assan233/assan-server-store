@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"net/http"
+	"syscall"
 	"time"
 
 	"github.com/Assan233/assan-server-store/internal/nas"
@@ -67,6 +68,8 @@ func writeNASError(w http.ResponseWriter, err error) {
 		writeError(w, 400, "invalid_nas_input", "请选择有效的 NAS 路径和支持的文件格式。")
 	case errors.Is(err, fs.ErrNotExist):
 		writeError(w, 404, "nas_not_found", "文件或文件夹已不存在，请刷新后重新选择。")
+	case errors.Is(err, fs.ErrPermission), errors.Is(err, syscall.EROFS):
+		writeError(w, 403, "nas_permission_denied", "无法读取源文件或写入所选目录，请检查权限或选择可写的 NAS 目录。")
 	case errors.Is(err, fs.ErrExist):
 		writeError(w, 409, "nas_conflict", "目标文件已存在，未覆盖原文件。")
 	case errors.Is(err, nas.ErrChanged):

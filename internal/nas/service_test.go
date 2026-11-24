@@ -55,8 +55,10 @@ func TestMediaWithFFmpeg(t *testing.T) {
 		}
 	}
 	dir := t.TempDir()
-	if err := os.Mkdir(filepath.Join(dir, "output"), 0o755); err != nil {
-		t.Fatal(err)
+	for _, share := range []string{"videos", "music"} {
+		if err := os.Mkdir(filepath.Join(dir, share), 0o755); err != nil {
+			t.Fatal(err)
+		}
 	}
 	s, err := New(dir)
 	if err != nil {
@@ -78,40 +80,42 @@ func TestMediaWithFFmpeg(t *testing.T) {
 		return data
 	}
 	for _, video := range []string{"示例.mp4", "示例2.mkv"} {
-		generate(video, "-f", "lavfi", "-i", "color=size=64x64:duration=0.2", "-c:v", "mpeg4", "-c:a", "aac")
-		got, err := s.Convert(ctx, video, "output")
-		if err != nil || got != "output/"+video[:len(video)-4]+".mp3" {
+		source := "videos/" + video
+		generate(source, "-f", "lavfi", "-i", "color=size=64x64:duration=0.2", "-c:v", "mpeg4", "-c:a", "aac")
+		got, err := s.Convert(ctx, source, "music")
+		if err != nil || got != "music/"+video[:len(video)-4]+".mp3" {
 			t.Fatalf("convert = %q, %v", got, err)
 		}
 		mp3, err := exec.Command(s.ffprobe, "-v", "error", "-show_entries", "stream=codec_name,channels", "-of", "default=nw=1", filepath.Join(dir, got)).Output()
 		if err != nil || !bytes.Contains(mp3, []byte("codec_name=mp3\nchannels=2")) {
 			t.Fatalf("expected stereo MP3, got %q, %v", mp3, err)
 		}
-		if _, err := s.Convert(ctx, video, "output"); !errors.Is(err, fs.ErrExist) {
+		if _, err := s.Convert(ctx, source, "music"); !errors.Is(err, fs.ErrExist) {
 			t.Fatalf("expected conversion collision, got %v", err)
 		}
 	}
 	for _, ext := range []string{".MP3", ".flac", ".m4a", ".wav", ".opus"} {
-		original := generate("original"+ext, "-metadata", "title=春天/旅行")
-		name := "春天 旅行" + ext
-		if got, err := s.Rename(ctx, "original"+ext); got != name || err != nil {
+		source := "music/original" + ext
+		original := generate(source, "-metadata", "title=春天/旅行")
+		name := "music/春天 旅行" + ext
+		if got, err := s.Rename(ctx, source); got != name || err != nil {
 			t.Fatalf("rename = %q, %v", got, err)
 		}
 		if data, err := os.ReadFile(filepath.Join(dir, name)); err != nil || !bytes.Equal(data, original) {
 			t.Fatalf("renamed content changed: %v", err)
 		}
-		if _, err := os.Stat(filepath.Join(dir, "original"+ext)); !errors.Is(err, fs.ErrNotExist) {
+		if _, err := os.Stat(filepath.Join(dir, source)); !errors.Is(err, fs.ErrNotExist) {
 			t.Fatalf("original filename still exists: %v", err)
 		}
 	}
-	generate("collision.flac", "-metadata", "title=春天/旅行")
-	if _, err := os.Stat(filepath.Join(dir, "春天 旅行.flac")); err != nil {
+	generate("music/collision.flac", "-metadata", "title=春天/旅行")
+	if _, err := os.Stat(filepath.Join(dir, "music/春天 旅行.flac")); err != nil {
 		t.Fatalf("collision target missing before rename: %v", err)
 	}
-	if got, err := s.Rename(ctx, "collision.flac"); !errors.Is(err, fs.ErrExist) {
+	if got, err := s.Rename(ctx, "music/collision.flac"); !errors.Is(err, fs.ErrExist) {
 		t.Fatalf("expected rename collision, got %q, %v", got, err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "collision.flac")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, "music/collision.flac")); err != nil {
 		t.Fatal(err)
 	}
 	generate("no-title.flac")
