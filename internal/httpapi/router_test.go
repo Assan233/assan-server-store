@@ -122,7 +122,7 @@ func TestSetupRequiresCSRFAndCreatesSession(t *testing.T) {
 	if got := request("GET", entries, "", adminCookies, "").Code; got != 503 {
 		t.Fatalf("disabled NAS list = %d", got)
 	}
-	for _, endpoint := range []string{"convert", "rename"} {
+	for _, endpoint := range []string{"convert", "title"} {
 		if got := request("POST", "/api/v1/nas/"+endpoint, `{}`, adminCookies, "").Code; got != 403 {
 			t.Fatalf("NAS %s without CSRF = %d", endpoint, got)
 		}

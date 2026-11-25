@@ -66,24 +66,20 @@ func (a *authAPI) registerNAS(mux *http.ServeMux, media *nas.Service, jobs *nas.
 			writeError(w, 500, "nas_queue_error", "无法保存转换任务，请稍后重试。")
 		}
 	})))
-	mux.HandleFunc("POST /api/v1/nas/rename", a.csrfProtected(protected(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/v1/nas/title", a.csrfProtected(protected(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Source string `json:"source"`
 		}
 		if !decodeBody(w, r, &body) {
 			return
 		}
-		name, err := media.Rename(r.Context(), body.Source)
-		writeNASResult(w, name, err)
+		result, err := media.SetTitle(r.Context(), body.Source)
+		if err != nil {
+			writeNASError(w, err)
+			return
+		}
+		writeJSON(w, map[string]any{"data": result})
 	})))
-}
-
-func writeNASResult(w http.ResponseWriter, name string, err error) {
-	if err != nil {
-		writeNASError(w, err)
-		return
-	}
-	writeJSON(w, map[string]any{"data": map[string]string{"path": name}})
 }
 
 func writeNASError(w http.ResponseWriter, err error) {
@@ -100,8 +96,8 @@ func writeNASError(w http.ResponseWriter, err error) {
 		writeError(w, 409, "nas_source_changed", "源文件已变化，请刷新后重试。")
 	case errors.Is(err, nas.ErrBusy):
 		writeError(w, 429, "nas_busy", "NAS 正在处理其他文件，请稍后再试。")
-	case errors.Is(err, nas.ErrNoTitle):
-		writeError(w, 422, "nas_no_title", "未找到可用的歌曲标题，原文件名未更改。")
+	case errors.Is(err, nas.ErrTagStorage):
+		writeError(w, 500, "nas_io_error", "无法写入音频标签，请检查 NAS 剩余空间和目录权限。")
 	case errors.Is(err, nas.ErrMedia):
 		writeError(w, 422, "nas_media_error", "无法处理该文件，请确认格式、音轨和输出大小。")
 	case errors.Is(err, context.DeadlineExceeded):

@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -18,7 +17,6 @@ import (
 	"syscall"
 	"time"
 	"unicode"
-	"unicode/utf8"
 )
 
 var (
@@ -28,8 +26,6 @@ var (
 	ErrBusy = errors.New("NAS media service is busy")
 	// ErrMedia reports a read, probe, or encode failure in the media engine.
 	ErrMedia = errors.New("media processing failed")
-	// ErrNoTitle reports an audio file without a usable title tag.
-	ErrNoTitle = errors.New("audio has no usable title")
 	// ErrChanged reports that the source was replaced during processing.
 	ErrChanged = errors.New("source changed during processing")
 )
@@ -42,15 +38,14 @@ const (
 
 var formats = map[string]map[string]string{
 	"video": {".mkv": "matroska", ".mp4": "mov"},
-	"audio": {".mp3": "mp3", ".flac": "flac", ".m4a": "mov", ".aac": "aac", ".wav": "wav",
-		".ogg": "ogg", ".oga": "ogg", ".opus": "ogg", ".wma": "asf", ".aif": "aiff", ".aiff": "aiff", ".ape": "ape"},
+	"audio": titleFormats,
 }
 
 // Service confines NAS operations to a single configured filesystem root.
 type Service struct {
-	root            *os.Root
-	ffmpeg, ffprobe string
-	slot            chan struct{}
+	root   *os.Root
+	ffmpeg string
+	slot   chan struct{}
 }
 
 // New opens the media root. An empty directory setting disables NAS access.
@@ -62,15 +57,11 @@ func New(dir string) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("locate ffmpeg for NAS media: %w", err)
 	}
-	ffprobe, err := exec.LookPath("ffprobe")
-	if err != nil {
-		return nil, fmt.Errorf("locate ffprobe for NAS media: %w", err)
-	}
 	root, err := os.OpenRoot(dir)
 	if err != nil {
 		return nil, fmt.Errorf("open NAS media directory: %w", err)
 	}
-	return &Service{root: root, ffmpeg: ffmpeg, ffprobe: ffprobe, slot: make(chan struct{}, 1)}, nil
+	return &Service{root: root, ffmpeg: ffmpeg, slot: make(chan struct{}, 1)}, nil
 }
 
 // Close closes the media root.
@@ -240,103 +231,4 @@ func (s *Service) Convert(ctx context.Context, source, dir string) (string, erro
 		return "", err
 	}
 	return path.Join(dir, name), nil
-}
-
-// Rename reads the embedded song title and renames the file in its own folder.
-// It preserves the original extension and never overwrites an existing entry.
-func (s *Service) Rename(ctx context.Context, source string) (string, error) {
-	ext := path.Ext(source)
-	demuxer := formats["audio"][strings.ToLower(ext)]
-	if !valid(source) || demuxer == "" {
-		return "", ErrInput
-	}
-	if !s.acquire() {
-		return "", ErrBusy
-	}
-	defer func() { <-s.slot }()
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-	defer cancel()
-	dir, base := path.Dir(source), path.Base(source)
-	parent, err := s.root.OpenRoot(dir)
-	if err != nil {
-		return "", err
-	}
-	defer parent.Close()
-	input, err := openMedia(parent, base)
-	if err != nil {
-		return "", err
-	}
-	defer input.Close()
-	cmd := mediaCommand(ctx, s.ffprobe, input, "-v", "error", "-protocol_whitelist", "fd", "-f", demuxer,
-		"-fd", "3", "-select_streams", "a:0", "-show_entries", "format_tags=title:stream=index:stream_tags=title", "-of", "json", "-i", "fd:")
-	data, err := cmd.Output()
-	if ctx.Err() != nil {
-		return "", ctx.Err()
-	}
-	var result struct {
-		Format  struct{ Tags map[string]string }
-		Streams []struct{ Tags map[string]string }
-	}
-	if err != nil || json.Unmarshal(data, &result) != nil || len(result.Streams) == 0 {
-		return "", ErrMedia
-	}
-	name := cleanTitle(titleTag(result.Format.Tags))
-	if name == "" {
-		name = cleanTitle(titleTag(result.Streams[0].Tags))
-	}
-	if name == "" {
-		return "", ErrNoTitle
-	}
-	name += ext
-	if name == base {
-		return source, nil
-	}
-	info, err := input.Stat()
-	if err != nil {
-		return "", err
-	}
-	current, err := parent.Lstat(base)
-	if err != nil || !os.SameFile(info, current) {
-		return "", ErrChanged
-	}
-	if err := ctx.Err(); err != nil {
-		return "", err
-	}
-	if err := moveNoReplace(parent, base, name); err != nil {
-		return "", err
-	}
-	return path.Join(dir, name), nil
-}
-
-func titleTag(tags map[string]string) string {
-	for key, value := range tags {
-		if strings.EqualFold(key, "title") {
-			return value
-		}
-	}
-	return ""
-}
-
-func cleanTitle(value string) string {
-	value = strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) || strings.ContainsRune(`<>:"/\|?*`, r) {
-			return ' '
-		}
-		return r
-	}, value)
-	value = strings.Trim(strings.Join(strings.Fields(value), " "), ". ")
-	if len(value) > 240 {
-		end := 240
-		for !utf8.RuneStart(value[end]) {
-			end--
-		}
-		value = strings.TrimRight(value[:end], ". ")
-	}
-	stem, _, _ := strings.Cut(strings.ToUpper(value), ".")
-	switch strings.TrimRight(stem, " ") {
-	case "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9":
-		value = "_" + value
-	}
-	return value
 }

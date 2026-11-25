@@ -64,11 +64,11 @@
 | `GET /api/v1/nas/entries` | 查询参数 `path`、`kind`（`video`、`audio` 或 `folder`） | `[{"name":"子目录","directory":true}]` |
 | `POST /api/v1/nas/convert` | `{"source":"影片/a.mp4","directory":"音频"}` | `202 Accepted`，返回一条排队记录 |
 | `GET /api/v1/nas/conversions` | 无 | 所有进行中的记录及最近 100 条结束记录，按提交时间倒序 |
-| `POST /api/v1/nas/rename` | `{"source":"音频/a.flac"}` | `{"path":"音频/歌曲标题.flac"}` |
+| `POST /api/v1/nas/title` | `{"source":"音频/晴天.flac"}` | `{"path":"音频/晴天.flac","title":"晴天","changed":true}` |
 
 转换记录字段：`id`、`source`、`directory`、`createdAt`（ISO 8601）、`status`（`queued`、`running`、`completed`、`failed`），完成时附 `path`，失败时附 `error`。队列最多容纳 512 条未完成任务，满时返回 `429 nas_queue_full`。转换按提交顺序在后台逐项运行，不随 HTTP 断开取消。每项提取 MP4/MKV 第一条音轨，运行时限 15 分钟，遇到同名文件记为失败且不覆盖。记录保存在 `DATABASE_PATH` 同目录的 `<数据库文件名>.nas-conversions` SQLite 文件中；重启后继续处理排队的任务，重启时未完成的运行记录标为失败。升级时前后端须同步更新：提交接口不再直接返回 MP3 路径，应从转换记录读取结果。
 
-重命名读取嵌入的标题标签，不重新编码。目标已存在返回 `409 nas_conflict`；缺少可用标题返回 `422 nas_no_title`。同时仅处理一项媒体写操作。
+标题接口将去掉扩展名的文件名写入内嵌歌曲标题，不更改路径，也不重新编码。标题已一致时返回 `changed:false`。支持 MP3、FLAC、M4A、Ogg、Opus、WMA 和 APE，文件最多 1 GiB，目录须可创建和替换文件。写入成功后才发布更新。同时仅处理一项媒体写操作。旧的 `POST /api/v1/nas/rename` 已移除，前后端须同步升级。
 
 ## 用户管理
 

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -86,7 +87,7 @@ func TestMediaWithFFmpeg(t *testing.T) {
 		if err != nil || got != "music/"+video[:len(video)-4]+".mp3" {
 			t.Fatalf("convert = %q, %v", got, err)
 		}
-		mp3, err := exec.Command(s.ffprobe, "-v", "error", "-show_entries", "stream=codec_name,channels", "-of", "default=nw=1", filepath.Join(dir, got)).Output()
+		mp3, err := exec.Command("ffprobe", "-v", "error", "-show_entries", "stream=codec_name,channels", "-of", "default=nw=1", filepath.Join(dir, got)).Output()
 		if err != nil || !bytes.Contains(mp3, []byte("codec_name=mp3\nchannels=2")) {
 			t.Fatalf("expected stereo MP3, got %q, %v", mp3, err)
 		}
@@ -94,32 +95,56 @@ func TestMediaWithFFmpeg(t *testing.T) {
 			t.Fatalf("expected conversion collision, got %v", err)
 		}
 	}
-	for _, ext := range []string{".MP3", ".flac", ".m4a", ".wav", ".opus"} {
-		source := "music/original" + ext
-		original := generate(source, "-metadata", "title=春天/旅行")
-		name := "music/春天 旅行" + ext
-		if got, err := s.Rename(ctx, source); got != name || err != nil {
-			t.Fatalf("rename = %q, %v", got, err)
+	t.Run("write titles", func(t *testing.T) {
+		if err := exec.Command("python3", "-I", "-c", "import mutagen").Run(); err != nil {
+			t.Skip("title integration test requires Python 3 with Mutagen")
 		}
-		if data, err := os.ReadFile(filepath.Join(dir, name)); err != nil || !bytes.Equal(data, original) {
-			t.Fatalf("renamed content changed: %v", err)
+		const title = "晴天.Live"
+		for _, ext := range []string{".MP3", ".flac", ".m4a", ".ogg", ".opus", ".wma"} {
+			source := "music/" + title + ext
+			args := []string{"-metadata", "artist=Example"}
+			if ext != ".flac" {
+				args = append(args, "-metadata", "title=Old title")
+			}
+			generate(source, args...)
+			filename := filepath.Join(dir, source)
+			audioHash := func() string {
+				t.Helper()
+				data, err := exec.Command("ffmpeg", "-v", "error", "-i", filename, "-map", "0:a:0", "-c", "copy", "-f", "hash", "-").CombinedOutput()
+				if err != nil {
+					t.Fatalf("hash %s: %v: %s", source, err, data)
+				}
+				return string(data)
+			}
+			before := audioHash()
+			if got, err := s.SetTitle(ctx, source); err != nil || got != (TitleResult{Path: source, Title: title, Changed: true}) {
+				t.Fatalf("%s set title = %+v, %v", source, got, err)
+			}
+			data, err := exec.Command("ffprobe", "-v", "error", "-show_entries", "format_tags=title,artist:stream_tags=title,artist", "-of", "default=nw=1", filename).Output()
+			text := strings.ToLower(string(data))
+			if err != nil || !strings.Contains(text, "tag:title="+strings.ToLower(title)+"\n") || !strings.Contains(text, "tag:artist=example\n") || strings.Contains(text, "old title") || audioHash() != before {
+				t.Fatalf("%s title, artist or audio mismatch: %q, %v", source, data, err)
+			}
+			if got, err := s.SetTitle(ctx, source); err != nil || got != (TitleResult{Path: source, Title: title}) {
+				t.Fatalf("%s repeat = %+v, %v", source, got, err)
+			}
 		}
-		if _, err := os.Stat(filepath.Join(dir, source)); !errors.Is(err, fs.ErrNotExist) {
-			t.Fatalf("original filename still exists: %v", err)
+		const bad = "music/bad.flac"
+		filename := filepath.Join(dir, bad)
+		original := []byte("corrupt audio")
+		if err := os.WriteFile(filename, original, 0o644); err != nil {
+			t.Fatal(err)
 		}
-	}
-	generate("music/collision.flac", "-metadata", "title=春天/旅行")
-	if _, err := os.Stat(filepath.Join(dir, "music/春天 旅行.flac")); err != nil {
-		t.Fatalf("collision target missing before rename: %v", err)
-	}
-	if got, err := s.Rename(ctx, "music/collision.flac"); !errors.Is(err, fs.ErrExist) {
-		t.Fatalf("expected rename collision, got %q, %v", got, err)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "music/collision.flac")); err != nil {
-		t.Fatal(err)
-	}
-	generate("no-title.flac")
-	if _, err := s.Rename(ctx, "no-title.flac"); !errors.Is(err, ErrNoTitle) {
-		t.Fatalf("expected missing title, got %v", err)
-	}
+		if _, err := s.SetTitle(ctx, bad); !errors.Is(err, ErrMedia) {
+			t.Fatalf("bad audio: %v", err)
+		}
+		if data, err := os.ReadFile(filename); err != nil || !bytes.Equal(data, original) {
+			t.Fatalf("original altered: %q, %v", data, err)
+		}
+		for _, source := range []string{"../outside.mp3", "music/ .flac", "music/raw.aac"} {
+			if _, err := s.SetTitle(ctx, source); !errors.Is(err, ErrInput) {
+				t.Fatalf("%s: %v", source, err)
+			}
+		}
+	})
 }
