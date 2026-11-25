@@ -30,11 +30,11 @@ func NewHandler(store *auth.Store, secureCookies, trustProxy bool, musicKey ...[
 
 // NewHandlerWithVideo includes the optional video downloader.
 func NewHandlerWithVideo(store *auth.Store, secureCookies, trustProxy bool, musicKey []byte, videos *video.Service) http.Handler {
-	return NewHandlerWithMedia(store, secureCookies, trustProxy, musicKey, videos, nil)
+	return NewHandlerWithMedia(store, secureCookies, trustProxy, musicKey, videos, nil, nil)
 }
 
 // NewHandlerWithMedia includes the optional video downloader and NAS media tools.
-func NewHandlerWithMedia(store *auth.Store, secureCookies, trustProxy bool, musicKey []byte, videos *video.Service, media *nas.Service) http.Handler {
+func NewHandlerWithMedia(store *auth.Store, secureCookies, trustProxy bool, musicKey []byte, videos *video.Service, media *nas.Service, jobs *nas.Jobs) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"status": "ok"})
@@ -61,13 +61,18 @@ func NewHandlerWithMedia(store *auth.Store, secureCookies, trustProxy bool, musi
 	mux.HandleFunc("POST /api/v1/music/commands", api.enqueueMusicCommand)
 	mux.HandleFunc("GET /api/v1/music/commands/next", api.nextMusicCommand)
 	api.registerVideo(mux, videos)
-	api.registerNAS(mux, media)
+	api.registerNAS(mux, media, jobs)
 	return securityHeaders(mux)
 }
 
 func writeJSON(w http.ResponseWriter, value any) {
+	writeJSONStatus(w, http.StatusOK, value)
+}
+
+func writeJSONStatus(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(status)
 	// Responses here contain only JSON-safe static values. The HTTP server owns
 	// connection errors; a failed write cannot be replaced by another response.
 	_ = json.NewEncoder(w).Encode(value)
@@ -242,8 +247,7 @@ func decodeBody(w http.ResponseWriter, r *http.Request, out any) bool {
 }
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	writeJSON(w, map[string]any{"error": map[string]string{"code": code, "message": message}})
+	writeJSONStatus(w, status, map[string]any{"error": map[string]string{"code": code, "message": message}})
 }
 
 func (a *authAPI) setupStatus(w http.ResponseWriter, r *http.Request) {

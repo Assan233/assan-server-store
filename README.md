@@ -37,7 +37,7 @@ compose.yaml           NAS 部署入口
 AGENTS.md              仓库级 AI 协作规则
 ```
 
-认证用户及会话存储在 SQLite 数据库中，Compose 命名卷 `assan-data` 持久保存 `/data/assan.db`。备份 NAS 上的 Docker volume 以保护账户数据。业务包与 HTTP 层分离；Go 的 `internal` 边界防止实现被外部模块导入。
+认证用户及会话存储在 SQLite 数据库中，Compose 命名卷 `assan-data` 持久保存 `/data/assan.db`。NAS 转换任务和记录存放在同一数据卷的 `/data/assan.db.nas-conversions`，由服务端后台处理。备份 NAS 上的 Docker volume 以保护账户和转换记录。业务包与 HTTP 层分离；Go 的 `internal` 边界防止实现被外部模块导入。
 
 ## 配置
 

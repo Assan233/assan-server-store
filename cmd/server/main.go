@@ -55,9 +55,17 @@ func run() error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	var jobs *nas.Jobs
+	if media != nil {
+		jobs, err = nas.OpenJobs(ctx, cfg.DatabasePath+".nas-conversions", media)
+		if err != nil {
+			return err
+		}
+		defer jobs.Close()
+	}
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           httpapi.NewHandlerWithMedia(db, cfg.SecureCookies, cfg.TrustProxy, cfg.MusicKey, videos, media),
+		Handler:           httpapi.NewHandlerWithMedia(db, cfg.SecureCookies, cfg.TrustProxy, cfg.MusicKey, videos, media, jobs),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

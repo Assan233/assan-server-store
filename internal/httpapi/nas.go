@@ -6,12 +6,11 @@ import (
 	"io/fs"
 	"net/http"
 	"syscall"
-	"time"
 
 	"github.com/Assan233/assan-server-store/internal/nas"
 )
 
-func (a *authAPI) registerNAS(mux *http.ServeMux, media *nas.Service) {
+func (a *authAPI) registerNAS(mux *http.ServeMux, media *nas.Service, jobs *nas.Jobs) {
 	protected := func(next http.HandlerFunc) http.HandlerFunc {
 		return a.adminOnly(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Cache-Control", "no-store")
@@ -30,7 +29,24 @@ func (a *authAPI) registerNAS(mux *http.ServeMux, media *nas.Service) {
 		}
 		writeJSON(w, map[string]any{"data": entries})
 	}))
-	mux.HandleFunc("POST /api/v1/nas/convert", a.csrfProtected(protected(func(w http.ResponseWriter, r *http.Request) {
+	withJobs := func(next http.HandlerFunc) http.HandlerFunc {
+		return protected(func(w http.ResponseWriter, r *http.Request) {
+			if jobs == nil {
+				writeError(w, 503, "nas_unavailable", "NAS 转换队列不可用。")
+				return
+			}
+			next(w, r)
+		})
+	}
+	mux.HandleFunc("GET /api/v1/nas/conversions", withJobs(func(w http.ResponseWriter, r *http.Request) {
+		records, err := jobs.List(r.Context())
+		if err != nil {
+			writeError(w, 500, "nas_queue_error", "无法读取转换记录，请稍后重试。")
+			return
+		}
+		writeJSON(w, map[string]any{"data": records})
+	}))
+	mux.HandleFunc("POST /api/v1/nas/convert", a.csrfProtected(withJobs(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Source    string `json:"source"`
 			Directory string `json:"directory"`
@@ -38,9 +54,17 @@ func (a *authAPI) registerNAS(mux *http.ServeMux, media *nas.Service) {
 		if !decodeBody(w, r, &body) {
 			return
 		}
-		_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(nas.MaxDuration + 10*time.Second))
-		name, err := media.Convert(r.Context(), body.Source, body.Directory)
-		writeNASResult(w, name, err)
+		job, err := jobs.Submit(r.Context(), body.Source, body.Directory)
+		switch {
+		case err == nil:
+			writeJSONStatus(w, http.StatusAccepted, map[string]any{"data": job})
+		case errors.Is(err, nas.ErrInput):
+			writeNASError(w, err)
+		case errors.Is(err, nas.ErrQueueFull):
+			writeError(w, 429, "nas_queue_full", "NAS 转换队列已满，请稍后再提交。")
+		default:
+			writeError(w, 500, "nas_queue_error", "无法保存转换任务，请稍后重试。")
+		}
 	})))
 	mux.HandleFunc("POST /api/v1/nas/rename", a.csrfProtected(protected(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {

@@ -176,11 +176,19 @@ func mediaCommand(ctx context.Context, bin string, file *os.File, args ...string
 	return cmd
 }
 
-// Convert writes the first audio track as MP3 in the chosen existing folder.
-func (s *Service) Convert(ctx context.Context, source, dir string) (string, error) {
+func videoDemuxer(source, dir string) (string, error) {
 	demuxer := formats["video"][strings.ToLower(path.Ext(source))]
 	if !valid(source) || !valid(dir) || demuxer == "" {
 		return "", ErrInput
+	}
+	return demuxer, nil
+}
+
+// Convert writes the first audio track as MP3 in the chosen existing folder.
+func (s *Service) Convert(ctx context.Context, source, dir string) (string, error) {
+	demuxer, err := videoDemuxer(source, dir)
+	if err != nil {
+		return "", err
 	}
 	if !s.acquire() {
 		return "", ErrBusy
