@@ -1,0 +1,36 @@
+internal/nas/jobs_test.go
+  s_9a3e8dfc4aef55::t_a6fb1bc83db30f 1-29,38-40,44-45,52-56,62-70,74-77,81-83,95-99
+  s_9a3e8dfc4aef55::t_52c322f6e45d66 30-37,41-43,46-51,57-61,71-73,78-80,84-94
+internal/nas/service.go
+  s_9a3e8dfc4aef55::t_3701140e16beb3 179,184-191
+  s_9a3e8dfc4aef55::t_d53380feb20429 192
+internal/nas/jobs.go
+  s_9a3e8dfc4aef55::t_3701140e16beb3 1-192
+internal/httpapi/router.go
+  s_9a3e8dfc4aef55::t_a6fb1bc83db30f 250
+  s_9a3e8dfc4aef55::t_3701140e16beb3 33,37,64,69-72,75
+cmd/server/main.go
+  s_9a3e8dfc4aef55::t_3701140e16beb3 58-65,68
+internal/httpapi/nas.go
+  s_9a3e8dfc4aef55::t_3701140e16beb3 13,32-49,57-67
+README.md
+  s_9a3e8dfc4aef55::t_561077cc2fc8ce 40
+docs/api.md
+  s_9a3e8dfc4aef55::t_561077cc2fc8ce 65-66,69-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c52e74d7f45e317a2cf571752bf8abbb5f63e72d",
+  "prompts": {},
+  "sessions": {
+    "s_9a3e8dfc4aef55": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df2ddd0d2ffewqL2zw7fB9RfH1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "caorongsen <caorongsen@zuoyebang.com>"
+    }
+  }
+}
